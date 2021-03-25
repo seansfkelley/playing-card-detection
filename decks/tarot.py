@@ -12,6 +12,12 @@ SUITED_CARDS = CardGroup(
       right=11,
       top=3,
       bottom=20,
+    ),
+    CardRect(
+      left=-3,
+      right=-11,
+      top=-3,
+      bottom=-20,
     )
   }
 )
@@ -24,6 +30,12 @@ TRUMP_CARDS = CardGroup(
       right=22,
       top=6,
       bottom=23,
+    ),
+    CardRect(
+      left=-6,
+      right=-22,
+      top=-6,
+      bottom=-23,
     )
   }
 )
@@ -37,6 +49,12 @@ FOOL = CardGroup(
       right=11,
       top=3,
       bottom=11,
+    ),
+    CardRect(
+      left=-3,
+      right=-11,
+      top=-3,
+      bottom=-11,
     )
   }
 )
