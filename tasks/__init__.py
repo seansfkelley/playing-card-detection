@@ -36,8 +36,8 @@ def fetch_backgrounds(c):
 
 
 @task
-def extract_card(c, infile, width, height):
-    _, debug_output = extract_card_impl(
+def extract_card(c, infile, width, height, debug=False):
+    result, debug_output = extract_card_impl(
         cv2.imread(infile),
         ExtractionParameters(
             card_width=int(width) * ARBITRARY_ZOOM_FACTOR,
@@ -45,10 +45,15 @@ def extract_card(c, infile, width, height):
         ),
     )
 
-    show_images_in_windows(
-        ("Grayscale", debug_output.grayscale),
-        ("Edged", debug_output.edged),
-        ("Card Contour", debug_output.card_contour),
-        ("Alpha Channel", debug_output.alpha_channel),
-        ("Result", debug_output.extracted_card),
-    )
+    if result is not None and not debug:
+        print("success; please locate preview window")
+        show_images_in_windows(("Result", result))
+    else:
+        print("focus:", debug_output.focus)
+        show_images_in_windows(
+            ("Grayscale", debug_output.grayscale),
+            ("Edged", debug_output.edged),
+            ("Card Contour", debug_output.card_contour),
+            ("Alpha Channel", debug_output.alpha_channel),
+            ("Result", debug_output.extracted_card),
+        )

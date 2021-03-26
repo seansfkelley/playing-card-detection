@@ -1,3 +1,23 @@
+# something something cards something something
+
+## install
+
+```sh
+poetry install
+```
+
+## demo
+
+(recommend `alias i='poetry run invoke'`)
+
+Demonstrate extracting and normalizing the image of a card.
+
+```sh
+poetry run invoke extract-card -w 66 -h 120 example/16.png
+```
+
+# original README
+
 # playing-card-detection
 
 Generating a dataset of playing cards to train a neural net.
