@@ -2,11 +2,11 @@ import numpy as np
 from typing import ClassVar
 from dataclasses import dataclass
 
-# I'm actually not totally sure what this is for, but without it, intermediate images are tiny!
+# Measurements are provided in millimeters, so scale them up to a reasonable pixel size.
 ARBITRARY_ZOOM_FACTOR = 4
 
 
-# This is never mutated except in post-init. `frozen` would still break that.
+# unsafe hash -> frozen wouldn't let us define the constructor in this way
 @dataclass(unsafe_hash=True)
 class CardRect:
     """
@@ -18,20 +18,24 @@ class CardRect:
     top: int
     bottom: int
 
-    def __post_init__(self):
-        self.left *= ARBITRARY_ZOOM_FACTOR
-        self.right *= ARBITRARY_ZOOM_FACTOR
-        self.top *= ARBITRARY_ZOOM_FACTOR
-        self.bottom *= ARBITRARY_ZOOM_FACTOR
+    def __init__(self, left_mm: int, right_mm: int, top_mm: int, bottom_mm: int):
+        self.left = left_mm * ARBITRARY_ZOOM_FACTOR
+        self.right = right_mm * ARBITRARY_ZOOM_FACTOR
+        self.top = top_mm * ARBITRARY_ZOOM_FACTOR
+        self.bottom = bottom_mm * ARBITRARY_ZOOM_FACTOR
 
     def as_nparray(self, card_width: int, card_height: int):
         left, right = sorted(
-            (self.left + card_width) % card_width,
-            (self.right + card_width) % card_width,
+            (
+                (self.left + card_width) % card_width,
+                (self.right + card_width) % card_width,
+            )
         )
         top, bottom = sorted(
-            (self.top + card_height) % card_height,
-            (self.bottom + card_height) % card_height,
+            (
+                (self.top + card_height) % card_height,
+                (self.bottom + card_height) % card_height,
+            )
         )
         return np.array(
             [
@@ -40,7 +44,7 @@ class CardRect:
                 [right, bottom],
                 [left, bottom],
             ],
-            dtype=np.float32,
+            dtype=np.int,
         )
 
 
@@ -56,6 +60,7 @@ class Deck:
     height: int
     cards: frozenset[CardGroup]
 
-    def __post_init__(self):
-        self.width *= ARBITRARY_ZOOM_FACTOR
-        self.height *= ARBITRARY_ZOOM_FACTOR
+    def __init__(self, width_mm: int, height_mm: int, cards: frozenset[CardGroup]):
+        self.width = width_mm * ARBITRARY_ZOOM_FACTOR
+        self.height = height_mm * ARBITRARY_ZOOM_FACTOR
+        self.cards = cards

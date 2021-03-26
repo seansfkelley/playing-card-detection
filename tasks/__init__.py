@@ -6,6 +6,7 @@ import os
 import cv2
 import shutil
 import importlib
+import random
 from card_generator.extract_card_from_image import (
     extract as extract_card_from_image,
     ExtractionParameters as ImageExtractionParameters,
@@ -19,6 +20,10 @@ from card_generator.util import show_images_in_windows
 
 DATA_DIR = "data"
 BACKGROUNDS_FILE = f"{DATA_DIR}/backgrounds.pickle"
+
+
+def _get_deck_by_name(deck_module_name: str) -> Deck:
+    return importlib.import_module(f"card_generator.decks.{deck_module_name}").DECK
 
 
 @task
@@ -94,10 +99,7 @@ def extract_all_videos(
     shutil.rmtree(outdir, ignore_errors=True)
     os.makedirs(outdir, exist_ok=True)
 
-    # spooky!
-    deck: Deck = importlib.import_module(
-        f"card_generator.decks.{deck_module_name}"
-    ).DECK
+    deck = _get_deck_by_name(deck_module_name)
 
     parameters = VideoExtractionParameters(
         card_width=deck.width, card_height=deck.height
@@ -122,3 +124,31 @@ def extract_all_videos(
                 cv2.imwrite(os.path.join(output_path, f"{i}.png"), image)
 
             print(f"extracted {len(result)} images for card {c}")
+
+
+@task
+def spot_check_rects(c, deck_module_name, directory="data/cards", n=5):
+    deck = _get_deck_by_name(deck_module_name)
+
+    all_extracted_images = list(glob(os.path.join(directory, "*", "*.png")))
+    selection = random.sample(all_extracted_images, min(len(all_extracted_images), n))
+
+    images = []
+
+    for path in selection:
+        *_, card_name, _ = path.split("/")
+        for g in deck.cards:
+            if card_name in g.card_names:
+                image = cv2.imread(path, cv2.IMREAD_UNCHANGED)
+                for r in g.identifiable_rects:
+                    cv2.drawContours(
+                        image,
+                        [r.as_nparray(deck.width, deck.height)],
+                        0,
+                        (0, 255, 0),
+                        1,
+                    )
+                images.append((path, image))
+                break
+
+    show_images_in_windows(*images)

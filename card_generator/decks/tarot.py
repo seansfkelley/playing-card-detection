@@ -9,16 +9,16 @@ SUITED_CARDS = CardGroup(
     identifiable_rects=frozenset(
         (
             CardRect(
-                left=3,
-                right=11,
-                top=3,
-                bottom=20,
+                left_mm=3,
+                right_mm=11,
+                top_mm=3,
+                bottom_mm=21,
             ),
             CardRect(
-                left=-3,
-                right=-11,
-                top=-3,
-                bottom=-20,
+                left_mm=-3,
+                right_mm=-11,
+                top_mm=-3,
+                bottom_mm=-21,
             ),
         )
     ),
@@ -29,16 +29,16 @@ TRUMP_CARDS = CardGroup(
     identifiable_rects=frozenset(
         (
             CardRect(
-                left=6,
-                right=22,
-                top=6,
-                bottom=23,
+                left_mm=5,
+                right_mm=22,
+                top_mm=5,
+                bottom_mm=24,
             ),
             CardRect(
-                left=-6,
-                right=-22,
-                top=-6,
-                bottom=-23,
+                left_mm=-5,
+                right_mm=-22,
+                top_mm=-5,
+                bottom_mm=-24,
             ),
         )
     ),
@@ -50,24 +50,24 @@ FOOL = CardGroup(
         (
             # TODO: This is a guess based on SUITED_CARDS.
             CardRect(
-                left=3,
-                right=11,
-                top=3,
-                bottom=11,
+                left_mm=4,
+                right_mm=12,
+                top_mm=4,
+                bottom_mm=13,
             ),
             CardRect(
-                left=-3,
-                right=-11,
-                top=-3,
-                bottom=-11,
+                left_mm=-4,
+                right_mm=-12,
+                top_mm=-4,
+                bottom_mm=-13,
             ),
         )
     ),
 )
 
 DECK = Deck(
-    width=66,
-    height=120,
+    width_mm=66,
+    height_mm=120,
     cards=frozenset(
         (
             SUITED_CARDS,
