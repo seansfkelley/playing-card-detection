@@ -7,7 +7,7 @@ from card_generator.extract_card import (
     extract_card as extract_card_impl,
     ExtractionParameters,
 )
-from card_generator.decks import TAROT_DECK
+from card_generator.decks import TAROT_DECK, ARBITRARY_ZOOM_FACTOR
 from card_generator.util import show_images_in_windows
 
 DATA_DIR = "data"
@@ -38,7 +38,17 @@ def fetch_backgrounds(c):
 @task
 def extract_card(c, infile, width, height):
     _, debug_output = extract_card_impl(
-        cv2.imread(infile), ExtractionParameters(card_width=width, card_height=height)
+        cv2.imread(infile),
+        ExtractionParameters(
+            card_width=int(width) * ARBITRARY_ZOOM_FACTOR,
+            card_height=int(height) * ARBITRARY_ZOOM_FACTOR,
+        ),
     )
 
-    print(debug_output)
+    show_images_in_windows(
+        ("Grayscale", debug_output.grayscale),
+        ("Edged", debug_output.edged),
+        ("Card Contour", debug_output.card_contour),
+        ("Alpha Channel", debug_output.alpha_channel),
+        ("Result", debug_output.extracted_card),
+    )

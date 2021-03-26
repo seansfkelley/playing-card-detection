@@ -2,8 +2,12 @@ import numpy as np
 from typing import ClassVar
 from dataclasses import dataclass
 
+# I'm actually not totally sure what this is for, but without it, intermediate images are tiny!
+ARBITRARY_ZOOM_FACTOR = 4
 
-@dataclass(frozen=True)
+
+# This is never mutated except in post-init. `frozen` would still break that.
+@dataclass(unsafe_hash=True)
 class CardRect:
     """
     A rectangular area on a card. Origin is in the top left. Use negative numbers to start from the bottom or right.
@@ -13,6 +17,12 @@ class CardRect:
     right: int
     top: int
     bottom: int
+
+    def __post_init__(self):
+        self.left *= ARBITRARY_ZOOM_FACTOR
+        self.right *= ARBITRARY_ZOOM_FACTOR
+        self.top *= ARBITRARY_ZOOM_FACTOR
+        self.bottom *= ARBITRARY_ZOOM_FACTOR
 
     def as_nparray(self, card_width: int, card_height: int):
         left, right = sorted(
@@ -40,8 +50,12 @@ class CardGroup:
     identifiable_rects: frozenset[CardRect]
 
 
-@dataclass(frozen=True)
+@dataclass
 class Deck:
     width: int
     height: int
     cards: frozenset[CardGroup]
+
+    def __post_init__(self):
+        self.width *= ARBITRARY_ZOOM_FACTOR
+        self.height *= ARBITRARY_ZOOM_FACTOR

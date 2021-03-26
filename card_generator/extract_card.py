@@ -17,9 +17,15 @@ class ExtractionParameters:
     card_height: int
 
     @cached_property
-    def alpha_mask() -> np.ndarray:
-        alpha_mask = np.ones((height, width), dtype=np.uint8) * 255
-        cv2.rectangle(alpha_mask, (0, 0), (width - 1, height - 1), 0, ALPHA_BORDER_SIZE)
+    def alpha_mask(self) -> np.ndarray:
+        alpha_mask = np.ones((self.card_height, self.card_width), dtype=np.uint8) * 255
+        cv2.rectangle(
+            alpha_mask,
+            (0, 0),
+            (self.card_width - 1, self.card_height - 1),
+            0,
+            ALPHA_BORDER_SIZE,
+        )
         cv2.line(
             alpha_mask,
             (ALPHA_BORDER_SIZE * 3, 0),
@@ -29,29 +35,29 @@ class ExtractionParameters:
         )
         cv2.line(
             alpha_mask,
-            (width - ALPHA_BORDER_SIZE * 3, 0),
-            (width, ALPHA_BORDER_SIZE * 3),
+            (self.card_width - ALPHA_BORDER_SIZE * 3, 0),
+            (self.card_width, ALPHA_BORDER_SIZE * 3),
             0,
             ALPHA_BORDER_SIZE,
         )
         cv2.line(
             alpha_mask,
-            (0, height - ALPHA_BORDER_SIZE * 3),
-            (ALPHA_BORDER_SIZE * 3, height),
+            (0, self.card_height - ALPHA_BORDER_SIZE * 3),
+            (ALPHA_BORDER_SIZE * 3, self.card_height),
             0,
             ALPHA_BORDER_SIZE,
         )
         cv2.line(
             alpha_mask,
-            (width - ALPHA_BORDER_SIZE * 3, height),
-            (width, height - ALPHA_BORDER_SIZE * 3),
+            (self.card_width - ALPHA_BORDER_SIZE * 3, self.card_height),
+            (self.card_width, self.card_height - ALPHA_BORDER_SIZE * 3),
             0,
             ALPHA_BORDER_SIZE,
         )
         return alpha_mask
 
     @cached_property
-    def reference_card_rect() -> np.ndarray:
+    def reference_card_rect(self) -> np.ndarray:
         return np.array(
             [
                 [0, 0],
@@ -63,7 +69,7 @@ class ExtractionParameters:
         )
 
     @cached_property
-    def reference_card_rect_rotated() -> np.ndarray:
+    def reference_card_rect_rotated(self) -> np.ndarray:
         np.array(
             [
                 [self.card_width, 0],
@@ -82,12 +88,12 @@ def score_focus(image: Image) -> float:
 
 @dataclass
 class ExtractCardDebugOutput:
-    focus: Optional[int]
-    grayscale: Optional[Image]
-    edged: Optional[Image]
-    card_contour: Optional[Image]
-    alpha_channel: Optional[Image]
-    extracted_card: Optional[Image]
+    focus: Optional[int] = None
+    grayscale: Optional[Image] = None
+    edged: Optional[Image] = None
+    card_contour: Optional[Image] = None
+    alpha_channel: Optional[Image] = None
+    extracted_card: Optional[Image] = None
 
 
 def extract_card(
@@ -105,14 +111,14 @@ def extract_card(
     grayscale = cv2.bilateralFilter(grayscale, 11, 17, 17)
     debug_output.grayscale = grayscale
 
-    edged = cv2.Canny(gray, 30, 200)
+    edged = cv2.Canny(grayscale, 30, 200)
     debug_output.edged = edged
 
     # TODO: should the input be copied here? does this mutate inputs?
     contours, _ = cv2.findContours(edged, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     # assume largest contour (by enclosed area) is the card
-    card_contour = min(contours, key=cv2.contourArea)
+    card_contour = max(contours, key=cv2.contourArea)
 
     min_area_bounding_rect = cv2.minAreaRect(card_contour)
     min_area_bounding_rect_corners = np.int0(cv2.boxPoints(min_area_bounding_rect))
@@ -157,12 +163,13 @@ def extract_card(
 
     alpha_channel = np.zeros(normalized_image.shape[:2], dtype=np.uint8)
     cv2.drawContours(alpha_channel, normalized_card_contour, 0, 255, -1)
-    alpha_channel = cv2.bitwise_and(alpha_channel, alphamask)
+    alpha_channel = cv2.bitwise_and(alpha_channel, parameters.alpha_mask)
     normalized_image[:, :, 3] = alpha_channel
 
+    debug_output.alpha_channel = alpha_channel
     debug_output.extracted_card = normalized_image
 
-    return normalized_image, debug_card_contour_image
+    return normalized_image, debug_output
 
 
 def todo_something_with_decks(deck: Deck):
