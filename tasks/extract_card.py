@@ -1,7 +1,9 @@
+from typing import Tuple, Optional
 import numpy as np
 import cv2
 from dataclasses import dataclass
 from ..decks.abstract import Deck, CardGroup, CardRect
+from cached_property import cached_property
 
 ALPHA_BORDER_SIZE = 2
 MIN_FOCUS = 100
@@ -14,8 +16,7 @@ class ExtractionParameters:
     card_width: int
     card_height: int
 
-    # TODO: cache dis.
-    @property
+    @cached_property
     def alpha_mask() -> np.ndarray:
         alpha_mask = np.ones((height, width), dtype=np.uint8) * 255
         cv2.rectangle(alpha_mask, (0, 0), (width - 1, height - 1), 0, ALPHA_BORDER_SIZE)
@@ -49,8 +50,7 @@ class ExtractionParameters:
         )
         return alpha_mask
 
-    # TODO: cache dis.
-    @property
+    @cached_property
     def reference_card_rect() -> np.ndarray:
         return np.array(
             [
@@ -62,8 +62,7 @@ class ExtractionParameters:
             dtype=np.float32,
         )
 
-    # TODO: cache dis.
-    @property
+    @cached_property
     def reference_card_rect_rotated() -> np.ndarray:
         np.array(
             [
@@ -92,18 +91,34 @@ def score_focus(image: Image) -> float:
     return cv2.Laplacian(image, cv2.CV_64F).var()
 
 
-def extract_card(image: Image, parameters: ExtractionParameters) -> Image:
+@dataclass
+class ExtractCardDebugOutput:
+    focus: Optional[int]
+    grayscale: Optional[Image]
+    edged: Optional[Image]
+    card_contour: Optional[Image]
+    alpha_channel: Optional[Image]
+    extracted_card: Optional[Image]
+
+
+def extract_card(
+    image: Image, parameters: ExtractionParameters
+) -> Tuple[Optional[Image], ExtractCardDebugOutput]:
+    debug_output = ExtractCardDebugOutput()
+
     focus = score_focus(image)
+    debug_output.focus = focus
     if focus < MIN_FOCUS:
-        # TODO: Debug logging?
-        print(f"focus too low: {focus}")
-        return None
+        return None, debug_output
 
     grayscale = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    # reduce noise, bu preserve edges
+    # reduce noise, but preserve edges
     grayscale = cv2.bilateralFilter(grayscale, 11, 17, 17)
+    debug_output.grayscale = grayscale
 
     edged = cv2.Canny(gray, 30, 200)
+    debug_output.edged = edged
+
     # TODO: should the input be copied here? does this mutate inputs?
     contours, _ = cv2.findContours(edged, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -112,12 +127,20 @@ def extract_card(image: Image, parameters: ExtractionParameters) -> Image:
 
     min_area_bounding_rect = cv2.minAreaRect(card_contour)
     min_area_bounding_rect_corners = np.int0(cv2.boxPoints(min_area_bounding_rect))
+
+    debug_card_contour_image = cv2.cvtColor(edged, cv2.COLOR_GRAY2BGR)
+    cv2.drawContours(
+        debug_card_contour_image, [min_area_bounding_rect_corners], 0, (0, 0, 255), 3
+    )
+    cv2.drawContours(debug_card_contour_image, [card_contour], 0, (0, 255, 0), -1)
+    debug_output.card_contour = debug_card_contour_image
+
     # make sure the contour is rectangular, i.e., it's very close in size to its own bounding box
     if (
         cv2.contourArea(card_contour) / cv2.contourArea(min_area_bounding_rect_corners)
         < 0.95
     ):
-        return None
+        return None, debug_output
 
     (_, (rect_width, rect_height), _) = min_area_bounding_rect
     if rect_width > rect_height:
@@ -131,35 +154,23 @@ def extract_card(image: Image, parameters: ExtractionParameters) -> Image:
             parameters.reference_card_rect_rotated,
         )
 
-    #############################################################################
-    # u r here
-    #############################################################################
+    normalized_image = cv2.warpPerspective(
+        image,
+        undo_perspective_transform,
+        (parameters.card_width, parameters.card_height),
+    )
+    normalized_image = cv2.cvtColor(normalized_image, cv2.COLOR_BGR2BGRA)
 
-    # Determine the warped image by applying the transformation to the image
-    imgwarp = cv2.warpPerspective(image, undo_perspective_transform, (cardW, cardH))
-    # Add alpha layer
-    imgwarp = cv2.cvtColor(imgwarp, cv2.COLOR_BGR2BGRA)
+    # reshape from (n, 1, 2) to (1, n, 2) to work with the transform
+    normalized_card_contour = cv2.perspectiveTransform(
+        card_contour.reshape(1, -1, 2).astype(np.float32), undo_perspective_transform
+    ).astype(np.int)
 
-    # Shape of 'cnt' is (n,1,2), type=int with n = number of points
-    # We reshape into (1,n,2), type=float32, before feeding to perspectiveTransform
-    cnta = cnt.reshape(1, -1, 2).astype(np.float32)
-    # Apply the transformation 'Mp' to the contour
-    cntwarp = cv2.perspectiveTransform(cnta, perspective_untransform)
-    cntwarp = cntwarp.astype(np.int)
+    alpha_channel = np.zeros(normalized_image.shape[:2], dtype=np.uint8)
+    cv2.drawContours(alpha_channel, normalized_card_contour, 0, 255, -1)
+    alpha_channel = cv2.bitwise_and(alpha_channel, alphamask)
+    normalized_image[:, :, 3] = alpha_channel
 
-    # We build the alpha channel so that we have transparency on the
-    # external border of the card
-    # First, initialize alpha channel fully transparent
-    alphachannel = np.zeros(imgwarp.shape[:2], dtype=np.uint8)
-    # Then fill in the contour to make opaque this zone of the card
-    cv2.drawContours(alphachannel, cntwarp, 0, 255, -1)
+    debug_output.extracted_card = normalized_image
 
-    # Apply the alphamask onto the alpha channel to clean it
-    alphachannel = cv2.bitwise_and(alphachannel, alphamask)
-
-    # Add the alphachannel to the warped image
-    imgwarp[:, :, 3] = alphachannel
-
-    # Save the image to file
-    if output_fn is not None:
-        cv2.imwrite(output_fn, imgwarp)
+    return normalized_image, debug_card_contour_image
