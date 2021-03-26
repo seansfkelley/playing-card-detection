@@ -13,7 +13,13 @@ poetry install
 Demonstrate extracting and normalizing the image of a card.
 
 ```sh
-poetry run invoke extract-card -w 66 -h 120 example/16.png
+poetry run invoke demo-extract-image -w 66 -h 120 example/16.png
+```
+
+Demonstrate extracting and normalizing images of a card from a video.
+
+```sh
+poetry run invoke demo-extract-video -w 66 -h 120 example/16.mov
 ```
 
 # original README

@@ -3,9 +3,13 @@ from glob import glob
 import matplotlib.image as mpimage
 import pickle
 import cv2
-from card_generator.extract_card import (
-    extract_card as extract_card_impl,
-    ExtractionParameters,
+from card_generator.extract_card_from_image import (
+    extract as extract_card_from_image,
+    ExtractionParameters as ImageExtractionParameters,
+)
+from card_generator.extract_cards_from_video import (
+    extract as extract_cards_from_video,
+    ExtractionParameters as VideoExtractionParameters,
 )
 from card_generator.decks import TAROT_DECK, ARBITRARY_ZOOM_FACTOR
 from card_generator.util import show_images_in_windows
@@ -36,10 +40,10 @@ def fetch_backgrounds(c):
 
 
 @task
-def extract_card(c, infile, width, height, debug=False):
-    result, debug_output = extract_card_impl(
+def demo_extract_image(c, infile, width, height, debug=False):
+    result, debug_output = extract_card_from_image(
         cv2.imread(infile),
-        ExtractionParameters(
+        ImageExtractionParameters(
             card_width=int(width) * ARBITRARY_ZOOM_FACTOR,
             card_height=int(height) * ARBITRARY_ZOOM_FACTOR,
         ),
@@ -57,3 +61,16 @@ def extract_card(c, infile, width, height, debug=False):
             ("Alpha Channel", debug_output.alpha_channel),
             ("Result", debug_output.extracted_card),
         )
+
+
+@task
+def demo_extract_video(c, infile, width, height):
+    result = extract_cards_from_video(
+        cv2.VideoCapture(infile),
+        VideoExtractionParameters(
+            card_width=int(width) * ARBITRARY_ZOOM_FACTOR,
+            card_height=int(height) * ARBITRARY_ZOOM_FACTOR,
+        ),
+    )
+
+    show_images_in_windows(*list((str(i), image) for i, image in enumerate(result)))
