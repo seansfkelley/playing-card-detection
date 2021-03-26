@@ -16,7 +16,7 @@ from card_generator.extract_cards_from_video import (
     ExtractionParameters as VideoExtractionParameters,
 )
 from card_generator.find_convex_hull import (
-    find as find_convex_hull,
+    find as find_convex_hull_impl,
     FindParameters as FindConvexHullParameters,
 )
 from card_generator.decks.base import Deck, CardGroup, ARBITRARY_ZOOM_FACTOR
@@ -130,23 +130,37 @@ def extract_all_videos(
             print(f"extracted {len(result)} images for card {c}")
 
 
-# @task
-# def find_convex_hull(c, deck_module_name, directory="data/cards"):
-#     deck = _get_deck_by_name(deck_module_name)
+@task
+def find_convex_hulls(c, deck_module_name, directory="data/cards"):
+    deck = _get_deck_by_name(deck_module_name)
 
-#     for path in glob(os.path.join(directory, "*", "*.png")):
-#         *_, card_name, _ = path.split("/")
-#         for g in deck.cards:
-#             if card_name in g.card_names:
-#                 image = cv2.imread(path, cv2.IMREAD_UNCHANGED)
-#                 for r in g.identifiable_rects:
-#                     parameters = FindConvexHullParameters(rect=r)
-#                     hull, debug_output = find_convex_hull(image, parameters)
-#                 break
+    for group in deck.cards:
+        for card in group.card_names:
+            card_path = os.path.join(directory, card)
+            if not os.path.exists(card_path):
+                print(f"could not find images for card {card} at {card_path}")
+                continue
 
-#     # TODO: is this the right way we want to do this?
-#     # TODO: dump a .pickle next to each input image
-#     # TODO: implement this.
+            for card_image_path in glob(os.path.join(card_path, "*.png")):
+                image = cv2.imread(card_image_path, cv2.IMREAD_UNCHANGED)
+                hulls = []
+                for r in group.identifiable_rects:
+                    parameters = FindConvexHullParameters(
+                        rect=r.as_nparray(
+                            card_width=deck.width, card_height=deck.height
+                        )
+                    )
+                    hull, debug_output = find_convex_hull_impl(image, parameters)
+                    if hull is None:
+                        hulls = []
+                        break
+                    else:
+                        hulls.append(hull)
+                if not hulls:
+                    print(f"could not find all hulls for {card_image_path}; skipping")
+                else:
+                    with open(os.path.splitext(card_image_path)[0] + ".pickle", "wb") as f:
+                        pickle.dump((cv2.cvtColor(image, cv2.COLOR_BGRA2RGBA), hulls), f)
 
 
 @task
@@ -164,7 +178,7 @@ def spot_check_rects(c, deck_module_name, directory="data/cards", n=5):
             if card_name in g.card_names:
                 image = cv2.imread(path, cv2.IMREAD_UNCHANGED)
                 for r in g.identifiable_rects:
-                    hull, _ = find_convex_hull(
+                    hull, _ = find_convex_hull_impl(
                         image,
                         FindConvexHullParameters(
                             rect=r.as_nparray(deck.width, deck.height)

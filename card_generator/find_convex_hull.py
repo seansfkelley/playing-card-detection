@@ -57,7 +57,7 @@ def find(
         area = cv2.contourArea(c)
         hull = cv2.convexHull(c)
 
-        # TODO: skip contours whose hull includes any of the four corner points (trump cards)
+        # TODO: skip contours whose hull includes any of the four corner points (outlines)
 
         hull_area = cv2.contourArea(hull)
         solidity = float(area) / hull_area
