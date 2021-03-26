@@ -15,6 +15,10 @@ from card_generator.extract_cards_from_video import (
     extract as extract_cards_from_video,
     ExtractionParameters as VideoExtractionParameters,
 )
+from card_generator.find_convex_hull import (
+    find as find_convex_hull,
+    FindParameters as FindConvexHullParameters,
+)
 from card_generator.decks.base import Deck, CardGroup, ARBITRARY_ZOOM_FACTOR
 from card_generator.util import show_images_in_windows
 
@@ -126,6 +130,25 @@ def extract_all_videos(
             print(f"extracted {len(result)} images for card {c}")
 
 
+# @task
+# def find_convex_hull(c, deck_module_name, directory="data/cards"):
+#     deck = _get_deck_by_name(deck_module_name)
+
+#     for path in glob(os.path.join(directory, "*", "*.png")):
+#         *_, card_name, _ = path.split("/")
+#         for g in deck.cards:
+#             if card_name in g.card_names:
+#                 image = cv2.imread(path, cv2.IMREAD_UNCHANGED)
+#                 for r in g.identifiable_rects:
+#                     parameters = FindConvexHullParameters(rect=r)
+#                     hull, debug_output = find_convex_hull(image, parameters)
+#                 break
+
+#     # TODO: is this the right way we want to do this?
+#     # TODO: dump a .pickle next to each input image
+#     # TODO: implement this.
+
+
 @task
 def spot_check_rects(c, deck_module_name, directory="data/cards", n=5):
     deck = _get_deck_by_name(deck_module_name)
@@ -141,13 +164,27 @@ def spot_check_rects(c, deck_module_name, directory="data/cards", n=5):
             if card_name in g.card_names:
                 image = cv2.imread(path, cv2.IMREAD_UNCHANGED)
                 for r in g.identifiable_rects:
+                    hull, _ = find_convex_hull(
+                        image,
+                        FindConvexHullParameters(
+                            rect=r.as_nparray(deck.width, deck.height)
+                        ),
+                    )
                     cv2.drawContours(
                         image,
                         [r.as_nparray(deck.width, deck.height)],
                         0,
-                        (0, 255, 0),
+                        (0, 255, 0) if hull is not None else (0, 0, 255),
                         1,
                     )
+                    if hull is not None:
+                        cv2.drawContours(
+                            image,
+                            [hull],
+                            0,
+                            (255, 0, 0),
+                            1,
+                        )
                 images.append((path, image))
                 break
 
