@@ -45,7 +45,7 @@ TRUMP_CARDS = CardGroup(
 )
 
 FOOL = CardGroup(
-    card_names=frozenset("fool"),
+    card_names=frozenset(("fool",)),
     identifiable_rects=frozenset(
         (
             # TODO: This is a guess based on SUITED_CARDS.
@@ -65,7 +65,7 @@ FOOL = CardGroup(
     ),
 )
 
-TAROT_DECK = Deck(
+DECK = Deck(
     width=66,
     height=120,
     cards=frozenset(

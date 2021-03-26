@@ -3,7 +3,6 @@ import numpy as np
 import cv2
 from dataclasses import dataclass
 from cached_property import cached_property
-from .decks import Deck, CardGroup, CardRect
 
 ALPHA_BORDER_SIZE = 2
 
@@ -170,13 +169,3 @@ def extract(
     debug_output.extracted_card = normalized_image
 
     return normalized_image, debug_output
-
-
-# def todo_something_with_decks(deck: Deck):
-#     parameters = ExtractionParameters(card_width=deck.width, card_height=deck.height)
-#     for group in deck.cards:
-#         todo_something_with_card_groups(group, parameters)
-
-
-# def todo_something_with_card_groups(group: CardGroup, parameters: ExtractionParameters):
-#     rects = [r.as_nparray() for r in group.identifiable_rects]
