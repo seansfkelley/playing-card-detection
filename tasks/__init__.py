@@ -83,4 +83,4 @@ def demo_extract_video(c, infile, width, height, outdir="example/output/frames/"
     for i, image in enumerate(result):
         cv2.imwrite(os.path.join(outdir, f"{i}.png"), image)
 
-    print(f"success; extracted {len(results)} images to {outdir}")
+    print(f"success; extracted {len(result)} images to {outdir}")

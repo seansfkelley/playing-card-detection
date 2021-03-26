@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 @dataclass
 class ExtractionParameters(ImageExtractionParameters):
-    skip_frames: int = 15
+    skip_frames: int = 5
 
 
 def extract(video: cv2.VideoCapture, parameters: ExtractionParameters):
@@ -21,7 +21,7 @@ def extract(video: cv2.VideoCapture, parameters: ExtractionParameters):
         if not success:
             break
 
-        if frame_number % parameters.skip_frames == 0:
+        if frame_number % parameters.skip_frames != 0:
             continue
 
         result, _ = extract_image(frame, parameters)
