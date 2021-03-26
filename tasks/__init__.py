@@ -2,7 +2,9 @@ from invoke import task
 from glob import glob
 import matplotlib.image as mpimage
 import pickle
+import os
 import cv2
+import shutil
 from card_generator.extract_card_from_image import (
     extract as extract_card_from_image,
     ExtractionParameters as ImageExtractionParameters,
@@ -40,7 +42,9 @@ def fetch_backgrounds(c):
 
 
 @task
-def demo_extract_image(c, infile, width, height, debug=False):
+def demo_extract_image(
+    c, infile, width, height, outfile="example/output/extracted_card.png", debug=False
+):
     result, debug_output = extract_card_from_image(
         cv2.imread(infile),
         ImageExtractionParameters(
@@ -50,8 +54,8 @@ def demo_extract_image(c, infile, width, height, debug=False):
     )
 
     if result is not None and not debug:
-        print("success; please locate preview window")
-        show_images_in_windows(("Result", result))
+        print(f"success; extracted image to {outfile}")
+        cv2.imwrite(outfile, result)
     else:
         print("focus:", debug_output.focus)
         show_images_in_windows(
@@ -64,7 +68,7 @@ def demo_extract_image(c, infile, width, height, debug=False):
 
 
 @task
-def demo_extract_video(c, infile, width, height):
+def demo_extract_video(c, infile, width, height, outdir="example/output/frames/"):
     result = extract_cards_from_video(
         cv2.VideoCapture(infile),
         VideoExtractionParameters(
@@ -73,4 +77,10 @@ def demo_extract_video(c, infile, width, height):
         ),
     )
 
-    show_images_in_windows(*list((str(i), image) for i, image in enumerate(result)))
+    shutil.rmtree(outdir, ignore_errors=True)
+    os.makedirs(outdir, exist_ok=True)
+
+    for i, image in enumerate(result):
+        cv2.imwrite(os.path.join(outdir, f"{i}.png"), image)
+
+    print(f"success; extracted {len(results)} images to {outdir}")
