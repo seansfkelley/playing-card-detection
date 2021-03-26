@@ -3,7 +3,7 @@ from typing import ClassVar
 from dataclasses import dataclass
 
 
-@dataclass
+@dataclass(frozen=True)
 class CardRect:
     """
     A rectangular area on a card. Origin is in the top left. Use negative numbers to start from the bottom or right.
@@ -34,14 +34,14 @@ class CardRect:
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class CardGroup:
-    card_names: set[str]
-    identifiable_rects: set[CardRect]
+    card_names: frozenset[str]
+    identifiable_rects: frozenset[CardRect]
 
 
-@dataclass
+@dataclass(frozen=True)
 class Deck:
     width: int
     height: int
-    cards: set[CardGroup]
+    cards: frozenset[CardGroup]
