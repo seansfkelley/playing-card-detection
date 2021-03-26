@@ -1,4 +1,7 @@
 from invoke import task
+import os
+import cv2
+import shutil
 from card_generator.extract_card_from_image import (
     extract as extract_card_from_image,
     ExtractionParameters as ImageExtractionParameters,
@@ -13,42 +16,35 @@ from card_generator.find_convex_hull import (
 )
 from card_generator.decks.base import Deck, CardGroup, ARBITRARY_ZOOM_FACTOR
 from card_generator.util import show_images_in_windows
+from .util import get_deck_by_name
 
 
 @task
-def extract_image(
-    c, infile, width, height, outfile="example/output/extracted_card.png", debug=False
-):
+def extract_image(c, deck_module_name, infile):
+    deck = get_deck_by_name(deck_module_name)
+
     result, debug_output = extract_card_from_image(
         cv2.imread(infile),
-        ImageExtractionParameters(
-            card_width=int(width) * ARBITRARY_ZOOM_FACTOR,
-            card_height=int(height) * ARBITRARY_ZOOM_FACTOR,
-        ),
+        ImageExtractionParameters(card_width=deck.width, card_height=deck.height),
     )
 
-    if result is not None and not debug:
-        print(f"success; extracted image to {outfile}")
-        cv2.imwrite(outfile, result)
-    else:
-        print("focus:", debug_output.focus)
-        show_images_in_windows(
-            ("Grayscale", debug_output.grayscale),
-            ("Edged", debug_output.edged),
-            ("Card Contour", debug_output.card_contour),
-            ("Alpha Channel", debug_output.alpha_channel),
-            ("Result", debug_output.extracted_card),
-        )
+    print("focus:", debug_output.focus)
+    show_images_in_windows(
+        ("Grayscale", debug_output.grayscale),
+        ("Edged", debug_output.edged),
+        ("Card Contour", debug_output.card_contour),
+        ("Alpha Channel", debug_output.alpha_channel),
+        ("Result", debug_output.extracted_card),
+    )
 
 
 @task
-def extract_video(c, infile, width, height, outdir="example/output/frames/"):
+def extract_video(c, deck_module_name, infile, outdir="example/output/frames/"):
+    deck = get_deck_by_name(deck_module_name)
+
     result = extract_cards_from_video(
         cv2.VideoCapture(infile),
-        VideoExtractionParameters(
-            card_width=int(width) * ARBITRARY_ZOOM_FACTOR,
-            card_height=int(height) * ARBITRARY_ZOOM_FACTOR,
-        ),
+        VideoExtractionParameters(card_width=deck.width, card_height=deck.height),
     )
 
     shutil.rmtree(outdir, ignore_errors=True)
@@ -62,7 +58,7 @@ def extract_video(c, infile, width, height, outdir="example/output/frames/"):
 
 @task
 def spot_check_rects(c, deck_module_name, directory="data/cards", n=5):
-    deck = _get_deck_by_name(deck_module_name)
+    deck = get_deck_by_name(deck_module_name)
 
     all_extracted_images = list(glob(os.path.join(directory, "*", "*.png")))
     selection = random.sample(all_extracted_images, min(len(all_extracted_images), n))

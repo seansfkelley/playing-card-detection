@@ -14,5 +14,5 @@ def augment_with_task_decorator(collection: Collection):
     return collection
 
 
-def _get_deck_by_name(deck_module_name: str) -> Deck:
+def get_deck_by_name(deck_module_name: str) -> Deck:
     return importlib.import_module(f"card_generator.decks.{deck_module_name}").DECK
