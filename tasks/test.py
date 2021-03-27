@@ -1,7 +1,10 @@
 from invoke import task
+from typing import Optional
 import os
 import cv2
 import shutil
+from glob import glob
+import random
 from card_generator.extract_card_from_image import (
     extract as extract_card_from_image,
     ExtractionParameters as ImageExtractionParameters,
@@ -17,6 +20,12 @@ from card_generator.find_convex_hull import (
 from card_generator.decks.base import Deck, CardGroup, ARBITRARY_ZOOM_FACTOR
 from card_generator.util import show_images_in_windows
 from .util import get_deck_by_name
+
+
+def _get_card_group_for_card_name(deck: Deck, name: str) -> Optional[CardGroup]:
+    for g in deck.cards:
+        if name in g.card_names:
+            return g
 
 
 @task
@@ -57,7 +66,7 @@ def extract_video(c, deck_module_name, infile, outdir="example/output/frames/"):
 
 
 @task
-def spot_check_rects(c, deck_module_name, directory="data/cards", n=5):
+def show_rects(c, deck_module_name, directory="data/cards", n=5):
     deck = get_deck_by_name(deck_module_name)
 
     all_extracted_images = list(glob(os.path.join(directory, "*", "*.png")))
@@ -67,32 +76,60 @@ def spot_check_rects(c, deck_module_name, directory="data/cards", n=5):
 
     for path in selection:
         *_, card_name, _ = path.split("/")
-        for g in deck.cards:
-            if card_name in g.card_names:
-                image = cv2.imread(path, cv2.IMREAD_UNCHANGED)
-                for r in g.identifiable_rects:
-                    hull, _ = find_convex_hull_impl(
-                        image,
-                        FindConvexHullParameters(
-                            rect=r.as_nparray(deck.width, deck.height)
-                        ),
-                    )
+        if group := _get_card_group_for_card_name(deck, card_name):
+            image = cv2.imread(path, cv2.IMREAD_UNCHANGED)
+            for r in group.identifiable_rects:
+                cv2.drawContours(
+                    image,
+                    [r.as_nparray(deck.width, deck.height)],
+                    0,
+                    (0, 255, 0),
+                    1,
+                )
+            images.append((path, image))
+        else:
+            print(f"could not find metadata for card named {card_name}")
+
+    show_images_in_windows(*images)
+
+
+@task
+def show_hulls(c, deck_module_name, directory="data/cards", n=5):
+    deck = get_deck_by_name(deck_module_name)
+
+    all_extracted_images = list(glob(os.path.join(directory, "*", "*.png")))
+    selection = random.sample(all_extracted_images, min(len(all_extracted_images), n))
+
+    images = []
+
+    for path in selection:
+        *_, card_name, _ = path.split("/")
+        if group := _get_card_group_for_card_name(deck, card_name):
+            image = cv2.imread(path, cv2.IMREAD_UNCHANGED)
+            for r in group.identifiable_rects:
+                hull, _ = find_convex_hull_impl(
+                    image,
+                    FindConvexHullParameters(
+                        rect=r.as_nparray(deck.width, deck.height)
+                    ),
+                )
+                cv2.drawContours(
+                    image,
+                    [r.as_nparray(deck.width, deck.height)],
+                    0,
+                    (0, 255, 0) if hull is not None else (0, 0, 255),
+                    1,
+                )
+                if hull is not None:
                     cv2.drawContours(
                         image,
-                        [r.as_nparray(deck.width, deck.height)],
+                        [hull],
                         0,
-                        (0, 255, 0) if hull is not None else (0, 0, 255),
+                        (255, 0, 0),
                         1,
                     )
-                    if hull is not None:
-                        cv2.drawContours(
-                            image,
-                            [hull],
-                            0,
-                            (255, 0, 0),
-                            1,
-                        )
-                images.append((path, image))
-                break
+            images.append((path, image))
+        else:
+            print(f"could not find metadata for card named {card_name}")
 
     show_images_in_windows(*images)
