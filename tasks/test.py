@@ -17,7 +17,7 @@ from card_generator.find_convex_hull import (
     find as find_convex_hull_impl,
     FindParameters as FindConvexHullParameters,
 )
-from card_generator.decks.base import Deck, CardGroup, ARBITRARY_ZOOM_FACTOR
+from card_generator.decks.base import Deck, CardGroup
 from card_generator.util import show_images_in_windows
 from .util import get_deck_by_name
 
@@ -114,7 +114,8 @@ def show_hulls(c, deck_module_name, file=None, directory="data/cards", n=1):
                 hull, debug_output = find_convex_hull_impl(
                     image,
                     FindConvexHullParameters(
-                        rect=r.as_nparray(deck.width, deck.height)
+                        rect=r.as_nparray(deck.width, deck.height),
+                        hull_area_range=r.hull_area_range,
                     ),
                 )
                 print(debug_output.hull_size)

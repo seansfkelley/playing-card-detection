@@ -14,7 +14,7 @@ from card_generator.find_convex_hull import (
     find as find_convex_hull_impl,
     FindParameters as FindConvexHullParameters,
 )
-from card_generator.decks.base import Deck, CardGroup, ARBITRARY_ZOOM_FACTOR
+from card_generator.decks.base import Deck, CardGroup
 from card_generator.util import show_images_in_windows
 from .util import augment_with_task_decorator
 from tasks import test

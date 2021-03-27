@@ -9,20 +9,18 @@ Image = np.ndarray
 @dataclass
 class FindParameters:
     rect: np.ndarray
+    hull_area_range: tuple[int, int]
     # heuristic: how small is too small for the contour? depends on zoom factor.
     min_contour_area: int = 30
     min_contour_solidity: float = 0.3
     contour_centroid_vertical_window: float = 0.8
     contour_centroid_horizontal_window: float = 0.8
-    # TODO: pick better numbers and also these should be part of a CardRect
-    # this also depends on the zoom factor
-    min_hull_area: int = 300
-    max_hull_area: int = 4250
 
     def __post_init__(self):
         assert 0 <= self.min_contour_solidity <= 1
         assert 0 <= self.contour_centroid_vertical_window <= 1
         assert 0 <= self.contour_centroid_horizontal_window <= 1
+        assert self.hull_area_range[0] < self.hull_area_range[1]
 
 
 @dataclass
@@ -43,8 +41,6 @@ def find(
 
     debug_output = FindConvexHullDebugOutput()
 
-    kernel = np.ones((3, 3), np.uint8)
-
     x1 = int(parameters.rect[0][0])
     y1 = int(parameters.rect[0][1])
     x2 = int(parameters.rect[2][0])
@@ -56,7 +52,7 @@ def find(
     debug_output.grayscale = grayscale
 
     thld = cv2.Canny(grayscale, 30, 200)
-    thld = cv2.dilate(thld, kernel, iterations=1)
+    thld = cv2.dilate(thld, np.ones((2, 2), np.uint8), iterations=1)
     debug_output.thld = thld
 
     debug_output.accepted_contours = np.zeros_like(grayscale)
@@ -98,7 +94,10 @@ def find(
         hull = cv2.convexHull(merged_contour)
         hull_area = cv2.contourArea(hull)
 
-        if hull_area < parameters.min_hull_area or hull_area > parameters.max_hull_area:
+        if (
+            hull_area < parameters.hull_area_range[0]
+            or hull_area > parameters.hull_area_range[1]
+        ):
             hull = None
             debug_output.hull_size = (False, hull_area)
         else:
