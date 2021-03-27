@@ -6,10 +6,6 @@ import os
 import cv2
 import shutil
 import random
-from card_generator.extract_card_from_image import (
-    extract as extract_card_from_image,
-    ExtractionParameters as ImageExtractionParameters,
-)
 from card_generator.extract_cards_from_video import (
     extract as extract_cards_from_video,
     ExtractionParameters as VideoExtractionParameters,
@@ -91,6 +87,8 @@ def extract_from_videos(
 def find_convex_hulls(c, deck_module_name, directory="data/cards"):
     deck = _get_deck_by_name(deck_module_name)
 
+    # TODO: delete any existing pickles for the images!
+
     for group in deck.cards:
         for card in group.card_names:
             card_path = os.path.join(directory, card)
@@ -107,7 +105,7 @@ def find_convex_hulls(c, deck_module_name, directory="data/cards"):
                             card_width=deck.width, card_height=deck.height
                         )
                     )
-                    hull, debug_output = find_convex_hull_impl(image, parameters)
+                    hull, _ = find_convex_hull_impl(image, parameters)
                     if hull is None:
                         hulls = []
                         break

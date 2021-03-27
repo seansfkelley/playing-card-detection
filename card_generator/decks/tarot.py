@@ -48,7 +48,6 @@ FOOL = CardGroup(
     card_names=frozenset(("fool",)),
     identifiable_rects=frozenset(
         (
-            # TODO: This is a guess based on SUITED_CARDS.
             CardRect(
                 left_mm=4,
                 right_mm=12,

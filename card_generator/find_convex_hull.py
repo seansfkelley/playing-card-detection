@@ -12,11 +12,17 @@ class FindParameters:
     # heuristic: how small is too small for the contour? depends on zoom factor.
     min_contour_area: int = 30
     min_contour_solidity: float = 0.3
-    contour_centroid_vertical_window: float = 0.4
-    contour_centroid_horizontal_window: float = 0.3
+    contour_centroid_vertical_window: float = 0.8
+    contour_centroid_horizontal_window: float = 0.8
     # TODO: pick better numbers and also these should be part of a CardRect
+    # this also depends on the zoom factor
     min_hull_area: int = 300
     max_hull_area: int = 4250
+
+    def __post_init__(self):
+        assert 0 <= self.min_contour_solidity <= 1
+        assert 0 <= self.contour_centroid_vertical_window <= 1
+        assert 0 <= self.contour_centroid_horizontal_window <= 1
 
 
 @dataclass
@@ -70,9 +76,9 @@ def find(
 
         centroid_in_bounds = (
             abs(width / 2 - centroid_x)
-            < width * parameters.contour_centroid_horizontal_window
+            < width * parameters.contour_centroid_horizontal_window / 2
             and abs(height / 2 - centroid_y)
-            < height * parameters.contour_centroid_vertical_window
+            < height * parameters.contour_centroid_vertical_window / 2
         )
 
         if (
