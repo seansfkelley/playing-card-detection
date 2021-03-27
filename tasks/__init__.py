@@ -34,19 +34,8 @@ def fetch_backgrounds(c):
         pty=True,
     )
     c.run("tar xf dtd-r1.0.1.tar.gz")
-
-    images = []
-    for f in glob("dtd/images/*/*.jpg"):
-        images.append(mpimage.imread(f))
-
-    print(f"loaded {len(images)} images")
-
-    backgrounds_path = f"{DATA_DIR}/backgrounds.pickle"
-
-    with open(backgrounds_path, "wb") as f:
-        pickle.dump(images, f)
-
-    print(f"saved to {backgrounds_path}")
+    c.run("mv dtd/images/* data/backgrounds")
+    print("done")
 
 
 @task
