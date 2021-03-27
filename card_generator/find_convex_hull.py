@@ -64,7 +64,11 @@ def find(
 
     for c in contours:
         area = cv2.contourArea(c)
-        solidity = float(area) / cv2.contourArea(cv2.convexHull(c))
+        try:
+            solidity = float(area) / cv2.contourArea(cv2.convexHull(c))
+        except ZeroDivisionError:
+            cv2.drawContours(debug_output.rejected_contours, [c], 0, 255, 1)
+            continue
 
         moments = cv2.moments(c)
         centroid_x = int(moments["m10"] / moments["m00"])

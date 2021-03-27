@@ -7,7 +7,7 @@ ARBITRARY_SCALE_FACTOR = 4
 
 
 # unsafe hash -> frozen wouldn't let us define the constructor in this way
-@dataclass(unsafe_hash=True)
+@dataclass(unsafe_hash=True, order=True)
 class IdentifiableCardRect:
     """
     A rectangular area on a card. Origin is in the top left. Use negative numbers to start from the bottom or right.
@@ -60,7 +60,7 @@ class IdentifiableCardRect:
         )
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, order=True)
 class CardGroup:
     card_names: frozenset[str]
     identifiable_rects: frozenset[IdentifiableCardRect]

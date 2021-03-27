@@ -16,7 +16,7 @@ from card_generator.find_convex_hull import (
 )
 from card_generator.decks.base import Deck, CardGroup
 from card_generator.util import show_images_in_windows
-from .util import augment_with_task_decorator
+from .util import augment_with_task_decorator, get_deck_by_name
 from tasks import test
 
 DATA_DIR = "data"
@@ -56,7 +56,7 @@ def extract_from_videos(
     shutil.rmtree(outdir, ignore_errors=True)
     os.makedirs(outdir, exist_ok=True)
 
-    deck = _get_deck_by_name(deck_module_name)
+    deck = get_deck_by_name(deck_module_name)
 
     parameters = VideoExtractionParameters(
         card_width=deck.width, card_height=deck.height
@@ -85,25 +85,33 @@ def extract_from_videos(
 
 @task
 def find_convex_hulls(c, deck_module_name, directory="data/cards"):
-    deck = _get_deck_by_name(deck_module_name)
-
-    # TODO: delete any existing pickles for the images!
+    deck = get_deck_by_name(deck_module_name)
 
     for group in deck.cards:
-        for card in group.card_names:
+        # sorting is best-effort so that chunks of work are logged in order, though the
+        # ordering of CardGroups is not consistent across invocations (they don't sort well)
+        for card in sorted(group.card_names):
             card_path = os.path.join(directory, card)
             if not os.path.exists(card_path):
                 print(f"could not find images for card {card} at {card_path}")
                 continue
 
+            for pickle_path in glob(os.path.join(card_path, "*.pickle")):
+                os.remove(pickle_path)
+
+            total = 0
+            successes = 0
+
             for card_image_path in glob(os.path.join(card_path, "*.png")):
+                total += 1
                 image = cv2.imread(card_image_path, cv2.IMREAD_UNCHANGED)
                 hulls = []
                 for r in group.identifiable_rects:
                     parameters = FindConvexHullParameters(
                         rect=r.as_nparray(
                             card_width=deck.width, card_height=deck.height
-                        )
+                        ),
+                        hull_area_range=r.hull_area_range,
                     )
                     hull, _ = find_convex_hull_impl(image, parameters)
                     if hull is None:
@@ -114,7 +122,10 @@ def find_convex_hulls(c, deck_module_name, directory="data/cards"):
                 if not hulls:
                     print(f"could not find all hulls for {card_image_path}; skipping")
                 else:
+                    successes += 1
                     with open(
                         os.path.splitext(card_image_path)[0] + ".pickle", "wb"
                     ) as f:
                         pickle.dump(hulls, f)
+
+            print(f"used {successes}/{total} images for {card}")
