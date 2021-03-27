@@ -1,6 +1,7 @@
 import numpy as np
 from typing import ClassVar
 from dataclasses import dataclass
+from collections import Counter
 
 # Measurements are provided in millimeters, so scale them up to a reasonable pixel size.
 ARBITRARY_SCALE_FACTOR = 4
@@ -21,6 +22,7 @@ class IdentifiableCardRect:
 
     def __init__(
         self,
+        *,
         left_mm: int,
         right_mm: int,
         top_mm: int,
@@ -72,7 +74,12 @@ class Deck:
     height: int
     cards: frozenset[CardGroup]
 
-    def __init__(self, width_mm: int, height_mm: int, cards: frozenset[CardGroup]):
+    def __init__(self, *, width_mm: int, height_mm: int, cards: frozenset[CardGroup]):
         self.width = width_mm * ARBITRARY_SCALE_FACTOR
         self.height = height_mm * ARBITRARY_SCALE_FACTOR
         self.cards = cards
+
+        unique_cards = Counter()
+        for group in cards:
+            unique_cards.update(group.card_names)
+        assert unique_cards.most_common(1)[0][1] == 1

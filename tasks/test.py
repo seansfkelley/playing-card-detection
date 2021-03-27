@@ -19,6 +19,7 @@ from card_generator.find_convex_hull import (
 )
 from card_generator.decks.base import Deck, CardGroup
 from card_generator.util import show_images_in_windows
+from card_generator.image_source import BackgroundImageSource, CardImageSource
 from .util import get_deck_by_name
 
 
@@ -154,3 +155,20 @@ def show_hulls(c, deck_module_name, file=None, directory="data/cards", n=1):
             print(f"could not find metadata for card named {card_name}")
 
     show_images_in_windows(*images)
+
+
+@task
+def random_background(c, directory="data/backgrounds"):
+    s = BackgroundImageSource.from_disk(directory)
+    show_images_in_windows(("Random Background", s.get_random_background()))
+
+
+@task
+def random_card(c, directory="data/cards"):
+    s = CardImageSource.from_disk(directory)
+    name, image, hulls = s.get_random_card()
+    image = image.copy()
+    image = cv2.cvtColor(image, cv2.COLOR_RGBA2BGRA)
+    for h in hulls:
+        cv2.drawContours(image, [h], 0, (0, 255, 0), 1)
+    show_images_in_windows((name, image))
