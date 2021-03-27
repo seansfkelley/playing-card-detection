@@ -54,7 +54,7 @@ def fetch_backgrounds(c):
 
 
 @task
-def extract_all_videos(
+def extract_from_videos(
     c, deck_module_name, extension="mov", indir="data/video", outdir="data/cards"
 ):
     shutil.rmtree(outdir, ignore_errors=True)
@@ -119,6 +119,4 @@ def find_convex_hulls(c, deck_module_name, directory="data/cards"):
                     with open(
                         os.path.splitext(card_image_path)[0] + ".pickle", "wb"
                     ) as f:
-                        pickle.dump(
-                            (cv2.cvtColor(image, cv2.COLOR_BGRA2RGBA), hulls), f
-                        )
+                        pickle.dump(hulls, f)
