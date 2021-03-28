@@ -2,3 +2,4 @@
 - left-hand fanning generation?
 - todos in fanning code
 - why are fanned cards sometimes truncated?
+- relax assertions about the size of the output image in SceneGenerator

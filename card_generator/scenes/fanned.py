@@ -50,17 +50,15 @@ class CardInFan:
 
 class FannedSceneGenerator(SceneGenerator):
     def generate_scene(self, n: int) -> Scene:
-        cards_in_fan = [
-            self._generate_card_in_fan(c) for c in self.cards.get_random_cards(n)
-        ]
+        cards_in_fan = [self._to_card_in_fan(c) for c in self.cards.get_random_cards(n)]
 
         resize_background = iaa.Resize({"height": self.height, "width": self.width})
 
         for i, c in enumerate(cards_in_fan):
             fan_remaining_cards_aug = iaa.Sequential(
                 [
-                    self._compute_tilt_augmentation(c.tilt_degrees),
-                    self._compute_jitter_augmentation(),
+                    self._get_tilt_augmentation(c.tilt_degrees),
+                    self._get_jitter_augmentation(),
                 ]
             ).to_deterministic()
 
@@ -95,7 +93,7 @@ class FannedSceneGenerator(SceneGenerator):
 
         return result, bounding_boxes
 
-    def _generate_card_in_fan(self, card: CardWithMetadata):
+    def _to_card_in_fan(self, card: CardWithMetadata):
         # new empty canvas
         image = np.zeros((self.height, self.width, 4), dtype=np.uint8)
         # TODO: This can be probably be a canvas based solely on the size of the card,
@@ -121,7 +119,7 @@ class FannedSceneGenerator(SceneGenerator):
         cosine = max_y / math.hypot(max_x, max_y)
         return math.degrees(math.acos(cosine))
 
-    def _compute_tilt_augmentation(self, degrees: int):
+    def _get_tilt_augmentation(self, degrees: int):
         # 0.9 -> sometimes players hold their cards slightly overlapping
         # 1.3 -> but more often they leave a lot of extra space
         min_degrees, max_degrees = degrees * 0.9, min(degrees * 1.3, MAX_FAN_ANGLE)
@@ -149,7 +147,7 @@ class FannedSceneGenerator(SceneGenerator):
             ]
         )
 
-    def _compute_jitter_augmentation(self):
+    def _get_jitter_augmentation(self):
         return iaa.Affine(
             translate_px={
                 "x": iap.Normal(0, int(self.deck.width * 0.03)),
