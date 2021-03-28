@@ -1,0 +1,4 @@
+- perspective warp in fanned hand
+- left-hand fanning generation?
+- todos in fanning code
+- why are fanned cards sometimes truncated?
