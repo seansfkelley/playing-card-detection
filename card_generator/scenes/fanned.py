@@ -21,7 +21,7 @@ BOUNDING_BOX_BUFFER = 3
 class CardInFan:
     name: str
     image: Image
-    fan_degrees: int
+    tilt_degrees: int
     keypoint_groups: list[ia.KeypointsOnImage]
 
     def augment(self, deterministic_aug: iaa.Augmenter):
@@ -60,19 +60,19 @@ class FannedSceneGenerator(SceneGenerator):
         resize_background = iaa.Resize({"height": self.height, "width": self.width})
 
         for i, c in enumerate(cards_in_fan):
-            augmentation = iaa.Sequential(
+            fan_remaining_cards_aug = iaa.Sequential(
                 [
-                    self._compute_fan_augmentation(c.fan_degrees),
+                    self._compute_tilt_augmentation(c.tilt_degrees),
                     self._compute_jitter_augmentation(),
                 ]
             ).to_deterministic()
 
             for later_card in cards_in_fan[i + 1 :]:
-                later_card.augment(augmentation)
+                later_card.augment(fan_remaining_cards_aug)
 
-        aggregate_aug = self._compute_aggregate_augmentation().to_deterministic()
+        hand_aug = self._get_whole_hand_augmentation().to_deterministic()
         for c in cards_in_fan:
-            c.augment(aggregate_aug)
+            c.augment(hand_aug)
 
         # TODO: reject any fans that obscure all keypoint_groups by n%
         # TODO: remove any bounding boxes that are not visible
@@ -82,7 +82,7 @@ class FannedSceneGenerator(SceneGenerator):
             self.backgrounds.get_random_background()
         )
         for c in cards_in_fan:
-            # TODO: no idea what's going on here
+            # no idea what's going on here
             mask = c.image[:, :, 3]
             mask = np.stack([mask] * 3, -1)
             result = np.where(mask, c.image[:, :, :3], result)
@@ -110,13 +110,13 @@ class FannedSceneGenerator(SceneGenerator):
         return CardInFan(
             name=card.name,
             image=image,
-            fan_degrees=self._get_fan_degrees(card.hulls),
+            tilt_degrees=self._get_tilt_degrees(card.hulls),
             keypoint_groups=[
                 self.hull_to_keypoints(h, dx=left, dy=top) for h in card.hulls
             ],
         )
 
-    def _get_fan_degrees(self, card_hulls: list[ConvexHull]):
+    def _get_tilt_degrees(self, card_hulls: list[ConvexHull]):
         # TODO: -1, 2 should reshape this to x, y rather than y, x, right?
         leftmost_hull = min(card_hulls, key=lambda h: min(h[:, :, 1])).reshape(-1, 2)
         max_x = max(leftmost_hull[:, 0])
@@ -124,7 +124,7 @@ class FannedSceneGenerator(SceneGenerator):
         cosine = max_y / math.hypot(max_x, max_y)
         return math.degrees(math.acos(cosine))
 
-    def _compute_fan_augmentation(self, degrees: int):
+    def _compute_tilt_augmentation(self, degrees: int):
         # 0.9 -> sometimes players hold their cards slightly overlapping
         # 1.3 -> but more often they leave a lot of extra space
         min_degrees, max_degrees = degrees * 0.9, min(degrees * 1.3, MAX_FAN_ANGLE)
@@ -162,7 +162,7 @@ class FannedSceneGenerator(SceneGenerator):
             }
         )
 
-    def _compute_aggregate_augmentation(self):
+    def _get_whole_hand_augmentation(self):
         return iaa.Sequential(
             [
                 iaa.Affine(scale=(0.65, 1)),
