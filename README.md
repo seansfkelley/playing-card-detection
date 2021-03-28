@@ -10,16 +10,24 @@ poetry install
 
 (recommend `alias i='poetry run invoke'`)
 
+Some of these commands pop up one or more preview windows. Hit any key to dismiss all the windows.
+
 Demonstrate extracting and normalizing the image of a card.
 
 ```sh
-poetry run invoke demo-extract-image -w 66 -h 120 example/16.png
+poetry run invoke test.extract-image tarot example/16.png
 ```
 
 Demonstrate extracting and normalizing images of a card from a video.
 
 ```sh
-poetry run invoke demo-extract-video -w 66 -h 120 example/16.mov
+poetry run invoke test.extract-video tarot example/16.mov
+```
+
+Demonstrate convex hull finding.
+
+```sh
+poetry run invoke test.show-hulls tarot
 ```
 
 # original README

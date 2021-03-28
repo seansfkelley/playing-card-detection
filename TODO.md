@@ -1,4 +1,0 @@
-- update readme and test cases
-- write scene generator that specializes in
-  - fanned cards
-  - cards randomly assorted
