@@ -1,16 +1,17 @@
 from typing import Tuple, Optional
 import numpy as np
 import cv2
+import itertools
 from dataclasses import dataclass
 from cached_property import cached_property
+from tqdm import tqdm
+from .types import Image
 
 ALPHA_BORDER_SIZE = 2
 
-Image = np.ndarray
-
 
 @dataclass
-class ExtractionParameters:
+class ImageExtractionParameters:
     card_width: int
     card_height: int
     min_focus: int = 120
@@ -95,8 +96,8 @@ class ExtractCardDebugOutput:
     extracted_card: Optional[Image] = None
 
 
-def extract(
-    image: Image, parameters: ExtractionParameters
+def extract_card_from_image(
+    image: Image, parameters: ImageExtractionParameters
 ) -> Tuple[Optional[Image], ExtractCardDebugOutput]:
     debug_output = ExtractCardDebugOutput()
 
@@ -169,3 +170,28 @@ def extract(
     debug_output.extracted_card = normalized_image
 
     return normalized_image, debug_output
+
+
+@dataclass
+class VideoExtractionParameters(ImageExtractionParameters):
+    skip_frames: int = 5
+
+
+def extract_cards_from_video(
+    video: cv2.VideoCapture, parameters: VideoExtractionParameters
+):
+    extracted_images = []
+
+    for frame_number in tqdm(itertools.count()):
+        success, frame = video.read()
+        if not success:
+            break
+
+        if frame_number % parameters.skip_frames != 0:
+            continue
+
+        result, _ = extract_card_from_image(frame, parameters)
+        if result is not None:
+            extracted_images.append(result)
+
+    return extracted_images

@@ -5,13 +5,11 @@ import cv2
 import shutil
 from glob import glob
 import random
-from card_generator.extract_card_from_image import (
-    extract as extract_card_from_image,
-    ExtractionParameters as ImageExtractionParameters,
-)
-from card_generator.extract_cards_from_video import (
-    extract as extract_cards_from_video,
-    ExtractionParameters as VideoExtractionParameters,
+from card_generator.extract_card import (
+    extract_card_from_image,
+    extract_cards_from_video,
+    ImageExtractionParameters,
+    VideoExtractionParameters,
 )
 from card_generator.find_convex_hull import (
     find as find_convex_hull_impl,

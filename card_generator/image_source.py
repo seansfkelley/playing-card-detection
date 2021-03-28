@@ -8,8 +8,8 @@ import random
 import pickle
 import matplotlib.image as mpl_image
 from cached_property import cached_property
+from .types import Image
 
-Image = np.ndarray
 ImageWithHulls = tuple[Image, list[np.ndarray]]
 
 CACHE_FILENAME = "image_source_cache.pickle"

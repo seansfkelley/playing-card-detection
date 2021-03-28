@@ -2,8 +2,7 @@ from typing import Optional
 import numpy as np
 import cv2
 from dataclasses import dataclass, field
-
-Image = np.ndarray
+from .types import Image
 
 
 @dataclass

@@ -1,4 +1,3 @@
-- recombine image and video extraction into one file
 - update readme and test cases
 - write scene generator that specializes in
   - fanned cards

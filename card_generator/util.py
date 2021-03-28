@@ -1,8 +1,6 @@
 from typing import Tuple, Optional
-import numpy as np
 import cv2
-
-Image = np.ndarray
+from .types import Image
 
 
 def show_images_in_windows(*images: Tuple[str, Optional[Image]]):
