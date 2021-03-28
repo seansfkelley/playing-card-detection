@@ -24,11 +24,15 @@ class CardInFan:
     fan_degrees: int
     keypoint_groups: list[ia.KeypointsOnImage]
 
-    def augment(self, augmentation: iaa.Augmenter):
-        aug = augmentation.to_deterministic()
-        self.image = aug.augment_image(self.image)
+    def augment(self, deterministic_aug: iaa.Augmenter):
+        # this function should NOT call to_deterministic, because in so doing it loses
+        # the state of the input and creates a new deterministic augmentation with a new
+        # seed -- meaning that it won't have the same seed as sibling CardInFans
+        self.image = deterministic_aug.augment_image(self.image)
         # do this one at a time in order to ensure determinism is the same for all of them
-        self.keypoint_groups = [aug.augment_keypoints(k) for k in self.keypoint_groups]
+        self.keypoint_groups = [
+            deterministic_aug.augment_keypoints(k) for k in self.keypoint_groups
+        ]
 
     def get_bounding_boxes(self, width: int, height: int) -> list[ia.BoundingBox]:
         bounding_boxes = []
@@ -55,37 +59,44 @@ class FannedSceneGenerator(SceneGenerator):
 
         resize_background = iaa.Resize({"height": self.height, "width": self.width})
 
-        result = resize_background.augment_image(
-            self.backgrounds.get_random_background()
-        )
         for i, c in enumerate(cards_in_fan):
-            # TODO: no idea what's going on here
-            mask = c.image[:, :, 3]
-            mask = np.stack([mask] * 3, -1)
-            result = np.where(mask, c.image[:, :, :3], result)
-
             augmentation = iaa.Sequential(
                 [
                     self._compute_fan_augmentation(c.fan_degrees),
                     self._compute_jitter_augmentation(),
                 ]
-            )
+            ).to_deterministic()
 
             for later_card in cards_in_fan[i + 1 :]:
                 later_card.augment(augmentation)
+
+        aggregate_aug = self._compute_aggregate_augmentation().to_deterministic()
+        for c in cards_in_fan:
+            c.augment(aggregate_aug)
 
         # TODO: reject any fans that obscure all keypoint_groups by n%
         # TODO: remove any bounding boxes that are not visible
         # TODO: should shrink bounding boxes that are partially obscured?
 
-        return (
-            result,
+        result = resize_background.augment_image(
+            self.backgrounds.get_random_background()
+        )
+        for c in cards_in_fan:
+            # TODO: no idea what's going on here
+            mask = c.image[:, :, 3]
+            mask = np.stack([mask] * 3, -1)
+            result = np.where(mask, c.image[:, :, :3], result)
+
+        bounding_boxes = ia.BoundingBoxesOnImage(
             list(
                 itertools.chain.from_iterable(
                     c.get_bounding_boxes(self.width, self.height) for c in cards_in_fan
                 )
             ),
+            result.shape,
         )
+
+        return result, bounding_boxes
 
     def _generate_card_in_fan(self, card: CardWithMetadata):
         # new empty canvas
@@ -145,6 +156,17 @@ class FannedSceneGenerator(SceneGenerator):
         return iaa.Affine(
             translate_px={
                 "x": iap.Normal(0, int(self.deck.width * 0.03)),
-                "y": iap.Normal(0, int(self.deck.height * 0.05)),
+                "y": iap.Normal(
+                    int(self.deck.height * 0.02), int(self.deck.height * 0.03)
+                ),
             }
+        )
+
+    def _compute_aggregate_augmentation(self):
+        return iaa.Sequential(
+            [
+                iaa.Affine(scale=(0.65, 1)),
+                iaa.Affine(rotate=(-180, 180)),
+                iaa.Affine(translate_percent={"x": (-0.2, 0.2), "y": (-0.2, 0.2)}),
+            ]
         )

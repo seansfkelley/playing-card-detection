@@ -5,7 +5,7 @@ from ..types import Image, ConvexHull
 from ..decks.base import Deck
 from .image_source import BackgroundImageSource, CardImageSource
 
-Scene = tuple[Image, ia.BoundingBox, ...]
+Scene = tuple[Image, ia.BoundingBoxesOnImage]
 
 
 @dataclass
