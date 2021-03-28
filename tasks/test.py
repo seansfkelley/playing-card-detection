@@ -15,6 +15,7 @@ from card_generator.find_convex_hull import (
     find as find_convex_hull_impl,
     FindParameters as FindConvexHullParameters,
 )
+from card_generator.scenes.fanned import FannedSceneGenerator
 from card_generator.decks.base import Deck, CardGroup
 from card_generator.util import show_images_in_windows
 from card_generator.scenes.image_source import BackgroundImageSource, CardImageSource
@@ -170,3 +171,21 @@ def random_card(c, directory="data/cards"):
     for h in hulls:
         cv2.drawContours(image, [h], 0, (0, 255, 0), 1)
     show_images_in_windows((name, image))
+
+
+@task
+def generate_fanned_hand(
+    c, deck_module_name, backgrounds_dir="data/backgrounds", cards_dir="data/cards"
+):
+    deck = get_deck_by_name(deck_module_name)
+    backgrounds = BackgroundImageSource.from_disk(backgrounds_dir)
+    cards = CardImageSource.from_disk(cards_dir)
+    generator = FannedSceneGenerator(
+        width=720,
+        height=1000,
+        deck=deck,
+        backgrounds=backgrounds,
+        cards=cards,
+    )
+    result = generator.generate_scene(n=2)
+    show_images_in_windows(("Generated Scene", result))
