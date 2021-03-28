@@ -25,6 +25,7 @@ def _get_card_group_for_card_name(deck: Deck, name: str) -> Optional[CardGroup]:
     for g in deck.cards:
         if name in g.card_names:
             return g
+    return None
 
 
 def _resolve_file_directory_image_parameters(

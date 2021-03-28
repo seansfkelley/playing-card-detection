@@ -118,3 +118,8 @@ def find_convex_hulls(c, deck_module_name, directory="data/cards"):
                         pickle.dump(hulls, f)
 
             print(f"used {successes}/{total} images for {card}")
+
+
+@task
+def typecheck(c):
+    c.run("mypy card_generator tasks")

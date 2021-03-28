@@ -8,7 +8,7 @@ import random
 import pickle
 import matplotlib.image as mpl_image
 from cached_property import cached_property
-from .types import Image, ConvexHull
+from ..types import Image, ConvexHull
 
 ImageWithHulls = tuple[Image, list[ConvexHull]]
 CardWithMetadata = tuple[str, Image, list[ConvexHull]]
@@ -60,7 +60,7 @@ class CardImageSource:
 
     @staticmethod
     def from_disk(directory: str) -> CardImageSource:
-        cards = {}
+        cards: dict[str, list[ImageWithHulls]] = {}
         for card_dir in glob(os.path.join(directory, "*")):
             card_name = os.path.basename(card_dir)
             cards[card_name] = []
