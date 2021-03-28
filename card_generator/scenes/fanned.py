@@ -3,7 +3,7 @@
 
 import math
 import numpy as np
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import itertools
 import imgaug as ia
 from imgaug import augmenters as iaa
@@ -21,25 +21,25 @@ BOUNDING_BOX_BUFFER = 3
 class CardInFan:
     name: str
     image: Image
-    hulls: list[ConvexHull]
-    keypoints: list[ia.KeypointsOnImage]
+    fan_degrees: int
+    keypoint_groups: list[ia.KeypointsOnImage]
 
     def augment(self, augmentation: iaa.Augmenter):
         aug = augmentation.to_deterministic()
         self.image = aug.augment_image(self.image)
         # do this one at a time in order to ensure determinism is the same for all of them
-        self.keypoints = [aug.augment_keypoints(k) for k in self.keypoints]
+        self.keypoint_groups = [aug.augment_keypoints(k) for k in self.keypoint_groups]
 
     def get_bounding_boxes(self, width: int, height: int) -> list[ia.BoundingBox]:
         bounding_boxes = []
-        for keypoints in self.keypoints:
-            keypoints_x = [k.x for k in keypoints]
-            min_x = max(0, int(min(keypoints_x) - BOUNDING_BOX_BUFFER))
-            max_x = min(width, int(max(keypoints_x) + BOUNDING_BOX_BUFFER))
+        for group in self.keypoint_groups:
+            group_x = [k.x for k in group]
+            min_x = max(0, int(min(group_x) - BOUNDING_BOX_BUFFER))
+            max_x = min(width, int(max(group_x) + BOUNDING_BOX_BUFFER))
 
-            keypoints_y = [k.y for k in keypoints]
-            min_y = max(0, int(min(keypoints_y) - BOUNDING_BOX_BUFFER))
-            max_y = min(height, int(max(keypoints_y) + BOUNDING_BOX_BUFFER))
+            group_y = [k.y for k in group]
+            min_y = max(0, int(min(group_y) - BOUNDING_BOX_BUFFER))
+            max_y = min(height, int(max(group_y) + BOUNDING_BOX_BUFFER))
 
             bounding_boxes.append(
                 ia.BoundingBox(x1=min_x, y1=min_y, x2=max_x, y2=max_y, label=self.name)
@@ -49,31 +49,9 @@ class CardInFan:
 
 class FannedSceneGenerator(SceneGenerator):
     def generate_scene(self, n: int) -> Scene:
-        cards = self.cards.get_random_cards(n)
-        cards_in_fan = []
-        for c in cards:
-            # new empty canvas
-            image = np.zeros((self.height, self.width, 4), dtype=np.uint8)
-            # TODO: This can be probably be a canvas based solely on the size of the card,
-            # and then clamped to the desired size later.
-            top = int(self.height / 2 - self.deck.height / 2)
-            left = int(self.width / 2 - self.deck.width / 2)
-            # paste the card into the middle
-            image[top : top + self.deck.height, left : left + self.deck.width] = (
-                # TODO: ugh, why is one an integer and the other a float? shouldn't they be the same?
-                c.image
-                * 255
-            )
-            cards_in_fan.append(
-                CardInFan(
-                    name=c.name,
-                    image=image,
-                    hulls=c.hulls,
-                    keypoints=[
-                        self.hull_to_keypoints(h, dx=left, dy=top) for h in c.hulls
-                    ],
-                )
-            )
+        cards_in_fan = [
+            self._generate_card_in_fan(c) for c in self.cards.get_random_cards(n)
+        ]
 
         resize_background = iaa.Resize({"height": self.height, "width": self.width})
 
@@ -88,7 +66,7 @@ class FannedSceneGenerator(SceneGenerator):
 
             augmentation = iaa.Sequential(
                 [
-                    self._compute_fan_augmentation(c.hulls),
+                    self._compute_fan_augmentation(c.fan_degrees),
                     self._compute_jitter_augmentation(),
                 ]
             )
@@ -96,9 +74,9 @@ class FannedSceneGenerator(SceneGenerator):
             for later_card in cards_in_fan[i + 1 :]:
                 later_card.augment(augmentation)
 
-        # TODO: reject any fans that obscure both hulls by n%
+        # TODO: reject any fans that obscure all keypoint_groups by n%
         # TODO: remove any bounding boxes that are not visible
-        # TODO: shrink hulls?
+        # TODO: should shrink bounding boxes that are partially obscured?
 
         return (
             result,
@@ -109,17 +87,36 @@ class FannedSceneGenerator(SceneGenerator):
             ),
         )
 
-    def _compute_fan_augmentation(self, hulls: list[ConvexHull]):
-        leftmost_hull = min(hulls, key=lambda h: min(h[:, :, 1]))
-        rightmost_hull_point = max(leftmost_hull, key=lambda p: p[:, 1])[0]
-        cosine = (self.deck.height - rightmost_hull_point[0]) / math.hypot(
-            rightmost_hull_point[1],
-            self.deck.height - rightmost_hull_point[0],
+    def _generate_card_in_fan(self, card: CardWithMetadata):
+        # new empty canvas
+        image = np.zeros((self.height, self.width, 4), dtype=np.uint8)
+        # TODO: This can be probably be a canvas based solely on the size of the card,
+        # and then clamped to the desired size later.
+        top = int(self.height / 2 - self.deck.height / 2)
+        left = int(self.width / 2 - self.deck.width / 2)
+        # paste the card into the middle
+        image[top : top + self.deck.height, left : left + self.deck.width] = card.image
+        return CardInFan(
+            name=card.name,
+            image=image,
+            fan_degrees=self._get_fan_degrees(card.hulls),
+            keypoint_groups=[
+                self.hull_to_keypoints(h, dx=left, dy=top) for h in card.hulls
+            ],
         )
-        min_degrees = math.degrees(math.acos(cosine))
-        min_degrees, max_degrees = min_degrees * 0.9, min(
-            min_degrees * 1.3, MAX_FAN_ANGLE
-        )
+
+    def _get_fan_degrees(self, card_hulls: list[ConvexHull]):
+        # TODO: -1, 2 should reshape this to x, y rather than y, x, right?
+        leftmost_hull = min(card_hulls, key=lambda h: min(h[:, :, 1])).reshape(-1, 2)
+        max_x = max(leftmost_hull[:, 0])
+        max_y = self.deck.height - max(leftmost_hull[:, 1])
+        cosine = max_y / math.hypot(max_x, max_y)
+        return math.degrees(math.acos(cosine))
+
+    def _compute_fan_augmentation(self, degrees: int):
+        # 0.9 -> sometimes players hold their cards slightly overlapping
+        # 1.3 -> but more often they leave a lot of extra space
+        min_degrees, max_degrees = degrees * 0.9, min(degrees * 1.3, MAX_FAN_ANGLE)
 
         # we want to rotate from the bottom-left corner, so have to translate back and forth
         return iaa.Sequential(
@@ -130,8 +127,6 @@ class FannedSceneGenerator(SceneGenerator):
                         "y": int(-self.deck.height / 2),
                     }
                 ),
-                # 0.9 -> sometimes players hold their cards slightly overlapping
-                # 1.2 -> but more often they leave a lot of extra space
                 iaa.Affine(
                     rotate=iap.Normal(
                         (min_degrees + max_degrees) / 2, (max_degrees - min_degrees) / 2

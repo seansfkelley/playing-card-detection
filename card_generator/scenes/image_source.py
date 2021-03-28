@@ -48,7 +48,7 @@ class BackgroundImageSource:
     def _from_source_images(directory: str) -> list[Image]:
         backgrounds = []
         for f in glob(os.path.join(directory, "**/*.jpg")):
-            backgrounds.append(mpl_image.imread(f))
+            backgrounds.append((mpl_image.imread(f) * 255).astype(np.uint8))
         return backgrounds
 
     @staticmethod
@@ -78,7 +78,9 @@ class CardImageSource:
                     continue
                 with open(pickle_file, "rb") as f:
                     hulls = pickle.load(f)
-                cards[card_name].append((mpl_image.imread(image_file), hulls))
+                cards[card_name].append(
+                    ((mpl_image.imread(image_file) * 255).astype(np.uint8), hulls)
+                )
 
         return CardImageSource(_cards=cards)
 

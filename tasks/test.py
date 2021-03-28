@@ -189,6 +189,7 @@ def generate_fanned_hand(
         cards=cards,
     )
     image, bounding_boxes = generator.generate_scene(n)
+    image = cv2.cvtColor(image, cv2.COLOR_RGBA2BGRA)
     for b in bounding_boxes:
         cv2.drawContours(
             image,
