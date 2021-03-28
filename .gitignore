@@ -2,3 +2,4 @@ dtd-r1.0.1.tar.gz
 dtd/
 .ipynb_checkpoints/
 .DS_Store
+.mypy_cache/
