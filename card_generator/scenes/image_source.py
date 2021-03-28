@@ -11,9 +11,15 @@ from cached_property import cached_property
 from ..types import Image, ConvexHull
 
 ImageWithHulls = tuple[Image, list[ConvexHull]]
-CardWithMetadata = tuple[str, Image, list[ConvexHull]]
 
 CACHE_FILENAME = "image_source_cache.pickle"
+
+
+@dataclass
+class CardWithMetadata:
+    name: str
+    image: Image
+    hulls: list[ConvexHull]
 
 
 @dataclass
@@ -81,7 +87,8 @@ class CardImageSource:
         return list(self._cards)
 
     def get_random_cards(self, n: int) -> list[CardWithMetadata]:
-        return [
-            (c, *random.choice(self._cards[c]))
-            for c in random.sample(self._card_names, n)
-        ]
+        cards = []
+        for c in random.sample(self._card_names, n):
+            image, hulls = random.choice(self._cards[c])
+            cards.append(CardWithMetadata(name=c, image=image, hulls=hulls))
+        return cards

@@ -1,17 +1,15 @@
 # TODO: in addition to the existing behavior, it should probably also perspective warp to mimic
 # the directions that a person might hold the cards in their hard relative to the camera
 
+import math
 import numpy as np
-from imgaug import augmenters
+from imgaug import augmenters as iaa
+from imgaug import parameters as iap
 from .base import SceneGenerator, Scene
 from ..util import show_images_in_windows
+from ..types import ConvexHull
 
-trans_rot1 = augmenters.Sequential(
-    [
-        augmenters.Affine(translate_px={"x": (10, 20)}),
-        augmenters.Affine(rotate=(22, 30)),
-    ]
-)
+MAX_FAN_ANGLE = 15
 
 
 class FannedSceneGenerator(SceneGenerator):
@@ -19,7 +17,7 @@ class FannedSceneGenerator(SceneGenerator):
         cards = self.cards.get_random_cards(n)
 
         images = []
-        for _, card_image, _ in cards:
+        for c in cards:
             # new empty canvas
             image = np.zeros((self.height, self.width, 4), dtype=np.uint8)
             # TODO: This can be probably be a canvas based solely on the size of the card,
@@ -32,25 +30,81 @@ class FannedSceneGenerator(SceneGenerator):
                 left : left + self.deck.width,
             ] = (
                 # TODO: ugh, why is one an integer and the other a float? shouldn't they be the same?
-                card_image
+                c.image
                 * 255
             )
             images.append(image)
 
-        resize_background = augmenters.Resize(
-            {"height": self.height, "width": self.width}
-        )
+        resize_background = iaa.Resize({"height": self.height, "width": self.width})
 
         result = resize_background.augment_image(
             self.backgrounds.get_random_background()
         )
-        for i in images:
+        for i, img in enumerate(images):
             # TODO: no idea what's going on here
-            mask = i[:, :, 3]
+            mask = img[:, :, 3]
             mask = np.stack([mask] * 3, -1)
-            result = np.where(mask, i[:, :, :3], result)
+            result = np.where(mask, img[:, :, :3], result)
+
+            augmentation = iaa.Sequential(
+                [
+                    self._compute_fan_augmentation(cards[i].hulls),
+                    self._compute_jitter_augmentation(),
+                ]
+            )
+
+            for j in range(i + 1, len(images)):
+                images[j] = augmentation.augment_image(images[j])
+
+        # TODO: generate keypoints and augment them too
+        # TODO: reject any fans that obscure both hulls by n%
 
         return result
+
+    def _compute_fan_augmentation(self, hulls: list[ConvexHull]):
+        leftmost_hull = min(hulls, key=lambda h: min(h[:, :, 1]))
+        rightmost_hull_point = max(leftmost_hull, key=lambda p: p[:, 1])[0]
+        cosine = (self.deck.height - rightmost_hull_point[0]) / math.hypot(
+            rightmost_hull_point[1],
+            self.deck.height - rightmost_hull_point[0],
+        )
+        min_degrees = math.degrees(math.acos(cosine))
+        min_degrees, max_degrees = min_degrees * 0.9, min(
+            min_degrees * 1.3, MAX_FAN_ANGLE
+        )
+
+        # we want to rotate from the bottom-left corner, so have to translate back and forth
+        return iaa.Sequential(
+            [
+                iaa.Affine(
+                    translate_px={
+                        "x": int(self.deck.width / 2),
+                        "y": int(-self.deck.height / 2),
+                    }
+                ),
+                # 0.9 -> sometimes players hold their cards slightly overlapping
+                # 1.2 -> but more often they leave a lot of extra space
+                iaa.Affine(
+                    rotate=iap.Normal(
+                        (min_degrees + max_degrees) / 2, (max_degrees - min_degrees) / 2
+                    )
+                ),
+                iaa.Affine(
+                    translate_px={
+                        "x": int(-self.deck.width / 2),
+                        "y": int(self.deck.height / 2),
+                    }
+                ),
+            ]
+        )
+
+    def _compute_jitter_augmentation(self):
+        return iaa.Affine(
+            translate_px={
+                "x": iap.Normal(0, int(self.deck.width * 0.03)),
+                "y": iap.Normal(0, int(self.deck.height * 0.05)),
+            }
+        )
 
     def create3CardsScene():
         kpsa1 = hull_to_kps(hulla1, decalX3, decalY3)

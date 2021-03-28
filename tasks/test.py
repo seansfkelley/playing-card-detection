@@ -175,7 +175,7 @@ def random_card(c, directory="data/cards"):
 
 @task
 def generate_fanned_hand(
-    c, deck_module_name, backgrounds_dir="data/backgrounds", cards_dir="data/cards"
+    c, deck_module_name, backgrounds_dir="data/backgrounds", cards_dir="data/cards", n=3
 ):
     deck = get_deck_by_name(deck_module_name)
     backgrounds = BackgroundImageSource.from_disk(backgrounds_dir)
@@ -187,5 +187,5 @@ def generate_fanned_hand(
         backgrounds=backgrounds,
         cards=cards,
     )
-    result = generator.generate_scene(n=2)
+    result = generator.generate_scene(n)
     show_images_in_windows(("Generated Scene", result))
