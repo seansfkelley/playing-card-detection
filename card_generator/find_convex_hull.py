@@ -2,7 +2,7 @@ from typing import Optional
 import numpy as np
 import cv2
 from dataclasses import dataclass, field
-from .types import Image
+from .types import Image, ConvexHull
 
 
 @dataclass
@@ -34,7 +34,7 @@ class FindConvexHullDebugOutput:
 
 def find(
     image: Image, parameters: FindParameters
-) -> tuple[Optional[np.ndarray], FindConvexHullDebugOutput]:
+) -> tuple[Optional[ConvexHull], FindConvexHullDebugOutput]:
     assert parameters.rect.shape == (4, 2)
     assert parameters.rect.dtype == np.int
 

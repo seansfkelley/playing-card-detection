@@ -17,7 +17,7 @@ from card_generator.find_convex_hull import (
 )
 from card_generator.decks.base import Deck, CardGroup
 from card_generator.util import show_images_in_windows
-from card_generator.image_source import BackgroundImageSource, CardImageSource
+from card_generator.scenes.image_source import BackgroundImageSource, CardImageSource
 from .util import get_deck_by_name
 
 
@@ -164,8 +164,7 @@ def random_background(c, directory="data/backgrounds"):
 @task
 def random_card(c, directory="data/cards"):
     s = CardImageSource.from_disk(directory)
-    name, image, hulls = s.get_random_card()
-    image = image.copy()
+    name, image, hulls = s.get_random_cards(1)[0]
     image = cv2.cvtColor(image, cv2.COLOR_RGBA2BGRA)
     for h in hulls:
         cv2.drawContours(image, [h], 0, (0, 255, 0), 1)

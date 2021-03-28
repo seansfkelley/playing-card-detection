@@ -8,9 +8,10 @@ import random
 import pickle
 import matplotlib.image as mpl_image
 from cached_property import cached_property
-from .types import Image
+from .types import Image, ConvexHull
 
-ImageWithHulls = tuple[Image, list[np.ndarray]]
+ImageWithHulls = tuple[Image, list[ConvexHull]]
+CardWithMetadata = tuple[str, Image, list[ConvexHull]]
 
 CACHE_FILENAME = "image_source_cache.pickle"
 
@@ -76,10 +77,11 @@ class CardImageSource:
         return CardImageSource(_cards=cards)
 
     @cached_property
-    def _card_names(self):
+    def _card_names(self) -> list[str]:
         return list(self._cards)
 
-    def get_random_card(self) -> tuple[str, Image, tuple[np.ndarray, ...]]:
-        card_name = random.choice(self._card_names)
-        image_with_hullses = self._cards[card_name]
-        return (card_name, *random.choice(image_with_hullses))
+    def get_random_cards(self, n: int) -> list[CardWithMetadata]:
+        return [
+            (c, *random.choice(self._cards[c]))
+            for c in random.sample(self._card_names, n)
+        ]

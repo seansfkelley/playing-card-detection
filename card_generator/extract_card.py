@@ -1,11 +1,11 @@
-from typing import Tuple, Optional
+from typing import Optional
 import numpy as np
 import cv2
 import itertools
 from dataclasses import dataclass
 from cached_property import cached_property
 from tqdm import tqdm
-from .types import Image
+from .types import Image, ConvexHull
 
 ALPHA_BORDER_SIZE = 2
 
@@ -17,7 +17,7 @@ class ImageExtractionParameters:
     min_focus: int = 120
 
     @cached_property
-    def alpha_mask(self) -> np.ndarray:
+    def alpha_mask(self) -> Image:
         alpha_mask = np.ones((self.card_height, self.card_width), dtype=np.uint8) * 255
         cv2.rectangle(
             alpha_mask,
@@ -98,7 +98,7 @@ class ExtractCardDebugOutput:
 
 def extract_card_from_image(
     image: Image, parameters: ImageExtractionParameters
-) -> Tuple[Optional[Image], ExtractCardDebugOutput]:
+) -> tuple[Optional[Image], ExtractCardDebugOutput]:
     debug_output = ExtractCardDebugOutput()
 
     focus = score_focus(image)
@@ -179,7 +179,7 @@ class VideoExtractionParameters(ImageExtractionParameters):
 
 def extract_cards_from_video(
     video: cv2.VideoCapture, parameters: VideoExtractionParameters
-):
+) -> list[Image]:
     extracted_images = []
 
     for frame_number in tqdm(itertools.count()):
