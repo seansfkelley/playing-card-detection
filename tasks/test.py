@@ -3,6 +3,7 @@ from typing import Optional
 import os
 import cv2
 import shutil
+import numpy as np
 from glob import glob
 import random
 from card_generator.extract_card import (
@@ -187,5 +188,23 @@ def generate_fanned_hand(
         backgrounds=backgrounds,
         cards=cards,
     )
-    result = generator.generate_scene(n)
-    show_images_in_windows(("Generated Scene", result))
+    image, bounding_boxes = generator.generate_scene(n)
+    for b in bounding_boxes:
+        cv2.drawContours(
+            image,
+            [
+                np.array(
+                    [
+                        [b.x1, b.y1],
+                        [b.x2, b.y1],
+                        [b.x2, b.y2],
+                        [b.x1, b.y2],
+                    ],
+                    dtype=np.int,
+                )
+            ],
+            0,
+            (0, 255, 0),
+            1,
+        )
+    show_images_in_windows(("Generated Scene", image))

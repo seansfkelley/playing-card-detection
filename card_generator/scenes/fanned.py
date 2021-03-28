@@ -3,63 +3,111 @@
 
 import math
 import numpy as np
+from dataclasses import dataclass
+import itertools
+import imgaug as ia
 from imgaug import augmenters as iaa
 from imgaug import parameters as iap
+from .image_source import CardWithMetadata
 from .base import SceneGenerator, Scene
 from ..util import show_images_in_windows
-from ..types import ConvexHull
+from ..types import ConvexHull, Image
 
 MAX_FAN_ANGLE = 15
+BOUNDING_BOX_BUFFER = 3
+
+
+@dataclass
+class CardInFan:
+    name: str
+    image: Image
+    hulls: list[ConvexHull]
+    keypoints: list[ia.KeypointsOnImage]
+
+    def augment(self, augmentation: iaa.Augmenter):
+        aug = augmentation.to_deterministic()
+        self.image = aug.augment_image(self.image)
+        # do this one at a time in order to ensure determinism is the same for all of them
+        self.keypoints = [aug.augment_keypoints(k) for k in self.keypoints]
+
+    def get_bounding_boxes(self, width: int, height: int) -> list[ia.BoundingBox]:
+        bounding_boxes = []
+        for keypoints in self.keypoints:
+            keypoints_x = [k.x for k in keypoints]
+            min_x = max(0, int(min(keypoints_x) - BOUNDING_BOX_BUFFER))
+            max_x = min(width, int(max(keypoints_x) + BOUNDING_BOX_BUFFER))
+
+            keypoints_y = [k.y for k in keypoints]
+            min_y = max(0, int(min(keypoints_y) - BOUNDING_BOX_BUFFER))
+            max_y = min(height, int(max(keypoints_y) + BOUNDING_BOX_BUFFER))
+
+            bounding_boxes.append(
+                ia.BoundingBox(x1=min_x, y1=min_y, x2=max_x, y2=max_y, label=self.name)
+            )
+        return bounding_boxes
 
 
 class FannedSceneGenerator(SceneGenerator):
     def generate_scene(self, n: int) -> Scene:
         cards = self.cards.get_random_cards(n)
-
-        images = []
+        cards_in_fan = []
         for c in cards:
             # new empty canvas
             image = np.zeros((self.height, self.width, 4), dtype=np.uint8)
             # TODO: This can be probably be a canvas based solely on the size of the card,
             # and then clamped to the desired size later.
-            bottom = int(self.height / 2 - self.deck.height / 2)
+            top = int(self.height / 2 - self.deck.height / 2)
             left = int(self.width / 2 - self.deck.width / 2)
             # paste the card into the middle
-            image[
-                bottom : bottom + self.deck.height,
-                left : left + self.deck.width,
-            ] = (
+            image[top : top + self.deck.height, left : left + self.deck.width] = (
                 # TODO: ugh, why is one an integer and the other a float? shouldn't they be the same?
                 c.image
                 * 255
             )
-            images.append(image)
+            cards_in_fan.append(
+                CardInFan(
+                    name=c.name,
+                    image=image,
+                    hulls=c.hulls,
+                    keypoints=[
+                        self.hull_to_keypoints(h, dx=left, dy=top) for h in c.hulls
+                    ],
+                )
+            )
 
         resize_background = iaa.Resize({"height": self.height, "width": self.width})
 
         result = resize_background.augment_image(
             self.backgrounds.get_random_background()
         )
-        for i, img in enumerate(images):
+        for i, c in enumerate(cards_in_fan):
             # TODO: no idea what's going on here
-            mask = img[:, :, 3]
+            mask = c.image[:, :, 3]
             mask = np.stack([mask] * 3, -1)
-            result = np.where(mask, img[:, :, :3], result)
+            result = np.where(mask, c.image[:, :, :3], result)
 
             augmentation = iaa.Sequential(
                 [
-                    self._compute_fan_augmentation(cards[i].hulls),
+                    self._compute_fan_augmentation(c.hulls),
                     self._compute_jitter_augmentation(),
                 ]
             )
 
-            for j in range(i + 1, len(images)):
-                images[j] = augmentation.augment_image(images[j])
+            for later_card in cards_in_fan[i + 1 :]:
+                later_card.augment(augmentation)
 
-        # TODO: generate keypoints and augment them too
         # TODO: reject any fans that obscure both hulls by n%
+        # TODO: remove any bounding boxes that are not visible
+        # TODO: shrink hulls?
 
-        return result
+        return (
+            result,
+            list(
+                itertools.chain.from_iterable(
+                    c.get_bounding_boxes(self.width, self.height) for c in cards_in_fan
+                )
+            ),
+        )
 
     def _compute_fan_augmentation(self, hulls: list[ConvexHull]):
         leftmost_hull = min(hulls, key=lambda h: min(h[:, :, 1]))
@@ -105,69 +153,3 @@ class FannedSceneGenerator(SceneGenerator):
                 "y": iap.Normal(0, int(self.deck.height * 0.05)),
             }
         )
-
-    def create3CardsScene():
-        kpsa1 = hull_to_kps(hulla1, decalX3, decalY3)
-        kpsb1 = hull_to_kps(hullb1, decalX3, decalY3)
-        kpsa2 = hull_to_kps(hulla2, decalX3, decalY3)
-        kpsb2 = hull_to_kps(hullb2, decalX3, decalY3)
-        kpsa3 = hull_to_kps(hulla3, decalX3, decalY3)
-        kpsb3 = hull_to_kps(hullb3, decalX3, decalY3)
-        self.img3 = np.zeros((imgH, imgW, 4), dtype=np.uint8)
-        self.img3[decalY3 : decalY3 + cardH, decalX3 : decalX3 + cardW, :] = img3
-        self.img3, self.lkps3, self.bbs3 = augment(
-            self.img3, [cardKP, kpsa3, kpsb3], trans_rot1
-        )
-        self.img2 = np.zeros((imgH, imgW, 4), dtype=np.uint8)
-        self.img2[decalY3 : decalY3 + cardH, decalX3 : decalX3 + cardW, :] = img2
-        self.img2, self.lkps2, self.bbs2 = augment(
-            self.img2, [cardKP, kpsa2, kpsb2], trans_rot2
-        )
-        self.img1 = np.zeros((imgH, imgW, 4), dtype=np.uint8)
-        self.img1[decalY3 : decalY3 + cardH, decalX3 : decalX3 + cardW, :] = img1
-
-        while True:
-            det_transform_3cards = transform_3cards.to_deterministic()
-            _img3, _lkps3, self.bbs3 = augment(
-                self.img3, self.lkps3, det_transform_3cards, False
-            )
-            if _img3 is None:
-                continue
-            _img2, _lkps2, self.bbs2 = augment(
-                self.img2, self.lkps2, det_transform_3cards, False
-            )
-            if _img2 is None:
-                continue
-            _img1, self.lkps1, self.bbs1 = augment(
-                self.img1, [cardKP, kpsa1, kpsb1], det_transform_3cards, False
-            )
-            if _img1 is None:
-                continue
-            break
-        self.img3 = _img3
-        self.lkps3 = _lkps3
-        self.img2 = _img2
-        self.lkps2 = _lkps2
-        self.img1 = _img1
-
-        self.class1 = class1
-        self.class2 = class2
-        self.class3 = class3
-        self.listbba = [
-            BBA(self.bbs1[0], class1),
-            BBA(self.bbs2[0], class2),
-            BBA(self.bbs3[0], class3),
-            BBA(self.bbs3[1], class3),
-        ]
-
-        # Construct final image of the scene by superimposing: bg, img1, img2 and img3
-        self.bg = scaleBg.augment_image(bg)
-        mask1 = self.img1[:, :, 3]
-        self.mask1 = np.stack([mask1] * 3, -1)
-        self.final = np.where(self.mask1, self.img1[:, :, 0:3], self.bg)
-        mask2 = self.img2[:, :, 3]
-        self.mask2 = np.stack([mask2] * 3, -1)
-        self.final = np.where(self.mask2, self.img2[:, :, 0:3], self.final)
-        mask3 = self.img3[:, :, 3]
-        self.mask3 = np.stack([mask3] * 3, -1)
-        self.final = np.where(self.mask3, self.img3[:, :, 0:3], self.final)

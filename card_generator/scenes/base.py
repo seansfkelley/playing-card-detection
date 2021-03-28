@@ -1,12 +1,11 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from imgaug import Keypoint, KeypointsOnImage
+import imgaug as ia
 from ..types import Image, ConvexHull
 from ..decks.base import Deck
 from .image_source import BackgroundImageSource, CardImageSource
 
-CardInScene = tuple[str, tuple[ConvexHull, ...]]
-Scene = tuple[Image, list[CardInScene]]
+Scene = tuple[Image, ia.BoundingBox, ...]
 
 
 @dataclass
@@ -21,11 +20,10 @@ class SceneGenerator(ABC):
         assert self.width > self.deck.width * 2
         assert self.height > self.deck.height * 2
 
-    def hull_to_keypoints(self, hull: ConvexHull, dx: int = 0, dy: int = 0):
-        # hull is a cv2.Contour, shape : Nx1x2
-        return KeypointsOnImage(
-            [Keypoint(x=p[0] + dx, y=p[1] + dy) for p in hull.reshape(-1, 2)],
-            shape=(self._inputs.height, self._inputs.width, 3),
+    def hull_to_keypoints(self, hull: ConvexHull, *, dx: int = 0, dy: int = 0):
+        return ia.KeypointsOnImage(
+            [ia.Keypoint(x=x + dx, y=y + dy) for x, y in hull.reshape(-1, 2)],
+            shape=(self.height, self.width, 3),
         )
 
     @abstractmethod
