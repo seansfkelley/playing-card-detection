@@ -182,7 +182,7 @@ def generate_fanned_hand(
     backgrounds = BackgroundImageSource.from_disk(backgrounds_dir)
     cards = CardImageSource.from_disk(cards_dir)
     generator = FannedSceneGenerator(
-        width=720,
+        width=1000,
         height=1000,
         deck=deck,
         backgrounds=backgrounds,
