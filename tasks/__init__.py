@@ -28,13 +28,14 @@ task = ns.task
 
 @task
 def fetch_backgrounds(c):
-    c.run("rm dtd-r1.0.1.tar.gz")
-    c.run(
-        "wget https://www.robots.ox.ac.uk/~vgg/data/dtd/download/dtd-r1.0.1.tar.gz",
-        pty=True,
-    )
-    c.run("tar xf dtd-r1.0.1.tar.gz")
-    c.run("mv dtd/images/* data/backgrounds")
+    with c.cd('data'):
+        c.run("rm dtd-r1.0.1.tar.gz")
+        c.run(
+            "wget https://www.robots.ox.ac.uk/~vgg/data/dtd/download/dtd-r1.0.1.tar.gz",
+            pty=True,
+        )
+        c.run("tar xf dtd-r1.0.1.tar.gz")
+        c.run("mv dtd/images/* backgrounds")
     print("done")
 
 
